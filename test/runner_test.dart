@@ -215,7 +215,7 @@ void main() {
     final r = await run(['app', '--no-sdk', '--verbose']);
     expect(r.err, contains('my_fork (git)'));
     expect(r.err, contains('zeibun_core (path)'));
-    expect(r.err, contains('internal_utils'));
+    expect(r.err, contains('internal_utils (dart.example.com)'));
     expect(r.err, contains('registry other than pub.dev'));
   });
 

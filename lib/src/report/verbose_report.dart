@@ -18,7 +18,10 @@ String renderVerbose(CheckResult result) {
           '  not looked up: ${counts.skipped.map(_skippedLabel).join(', ')}');
     }
     for (final pkg in counts.thirdPartyHosted) {
-      out.writeln('  ${pkg.name} (${pkg.hostedUrl}): hosted outside pub.dev; '
+      // The host only, not the URL: a registry URL may carry credentials in
+      // its userinfo, and this line ends up in a CI log.
+      out.writeln(
+          '  ${pkg.name} (${pkg.hostedUrl?.host}): hosted outside pub.dev; '
           'checked against '
           'advisories for the pub.dev package of the same name');
     }

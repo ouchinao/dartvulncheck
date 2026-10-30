@@ -1,4 +1,7 @@
+import 'package:pub_semver/pub_semver.dart';
+
 import 'errors.dart';
+import 'sdk_info.dart';
 
 // Typed notices, not message strings: sdk/, sources/ and check/ say what
 // happened, and only report/ decides how it reads.
@@ -40,6 +43,25 @@ class FellBackToOsv extends Warning {
 class RepositoryLookupsFailed extends Warning {
   final int count;
   const RepositoryLookupsFailed(this.count);
+}
+
+class SdkVersionMismatch extends Warning {
+  final Version chosen;
+  final Version onPath;
+  final SdkOrigin origin;
+  const SdkVersionMismatch(
+      {required this.chosen, required this.onPath, required this.origin});
+}
+
+class ThirdPartyHostedChecked extends Warning {
+  final int count;
+  const ThirdPartyHostedChecked(this.count);
+}
+
+class EndpointOverridden extends Warning {
+  final String variable;
+  final Uri url;
+  const EndpointOverridden(this.variable, this.url);
 }
 
 sealed class LookupNote {

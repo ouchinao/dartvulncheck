@@ -57,6 +57,7 @@ class Checker {
     final loaded = [for (final dir in options.directories) _load(dir, options)];
 
     final readable = loaded.whereType<_Loaded>().toList();
+    _warnAboutOtherRegistries(readable);
     final List<Advisory> advisories;
     final List<LookupNote> notes;
     try {
@@ -90,6 +91,15 @@ class Checker {
       ...matchSdk(sdk.info, sdkList,
           includeFlutter: l.lock.usesFlutter, ignored: l.ignored),
     ]);
+  }
+
+  void _warnAboutOtherRegistries(List<_Loaded> projects) {
+    final names = {
+      for (final l in projects)
+        for (final pkg in l.targets)
+          if (pkg.isThirdPartyHosted) pkg.name,
+    };
+    if (names.isNotEmpty) onWarning(ThirdPartyHostedChecked(names.length));
   }
 
   Future<(SdkStatus, List<Advisory>)> _checkSdk(CheckOptions options) async {

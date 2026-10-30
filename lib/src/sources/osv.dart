@@ -42,10 +42,16 @@ class OsvSource implements AdvisorySource {
     ];
   }
 
+  static const maxPages = 50;
+
   Future<Set<String>> _queryBatch(List<PackageRef> packages) async {
     final ids = <String>{};
     var pending = <(PackageRef, String?)>[for (final p in packages) (p, null)];
+    var pages = 0;
     while (pending.isNotEmpty) {
+      if (++pages > maxPages) {
+        throw UnexpectedResponse(sourceName, 'more than $maxPages pages');
+      }
       final body = {
         'queries': [
           for (final (p, token) in pending)

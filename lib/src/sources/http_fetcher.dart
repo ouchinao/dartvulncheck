@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -14,10 +15,15 @@ class Endpoints {
   final Uri osvApi;
   final Uri pubDev;
 
+  // Not forgotten once picked: the run says on stderr where its requests
+  // went, and a reader of a CI log should not have to guess.
+  final Map<String, Uri> overrides;
+
   const Endpoints({
     required this.githubApi,
     required this.osvApi,
     required this.pubDev,
+    this.overrides = const {},
   });
 
   static final defaults = Endpoints(
@@ -27,28 +33,47 @@ class Endpoints {
   );
 
   factory Endpoints.fromEnvironment(Map<String, String> env) {
+    final overrides = <String, Uri>{};
     Uri pick(String key, Uri fallback) {
       final v = env[key];
-      return v == null || v.isEmpty ? fallback : Uri.parse(v);
+      if (v == null || v.isEmpty) return fallback;
+      final url = Uri.tryParse(v);
+      if (url == null || url.host.isEmpty) {
+        throw InvalidEndpoint(key, v, 'not a URL');
+      }
+      // Plain http only to this machine: anywhere else the token and the
+      // answers would travel in the clear.
+      if (url.scheme != 'https' && !(url.scheme == 'http' && _loopback(url))) {
+        throw InvalidEndpoint(
+            key, v, 'not https (http is allowed for localhost only)');
+      }
+      overrides[key] = url;
+      return url;
     }
 
     return Endpoints(
       githubApi: pick('DARTVULNCHECK_GITHUB_API_URL', defaults.githubApi),
       osvApi: pick('DARTVULNCHECK_OSV_API_URL', defaults.osvApi),
       pubDev: pick('DARTVULNCHECK_PUB_URL', defaults.pubDev),
+      overrides: overrides,
     );
   }
+
+  static bool _loopback(Uri url) =>
+      url.host == 'localhost' || url.host == '127.0.0.1' || url.host == '::1';
 }
 
 class HttpFetcher {
   final http.Client client;
   final Duration timeout;
   final Duration retryDelay;
+  final int maxBodyBytes;
 
   HttpFetcher(
     this.client, {
     this.timeout = const Duration(seconds: 30),
     this.retryDelay = const Duration(seconds: 1),
+    this.maxBodyBytes = 16 << 20,
   });
 
   static const userAgent = 'dartvulncheck/$packageVersion';
@@ -56,31 +81,40 @@ class HttpFetcher {
   Future<http.Response> get(Uri url,
           {Map<String, String> headers = const {},
           required String sourceName}) =>
-      _send(() => client.get(url, headers: {..._baseHeaders, ...headers}),
-          sourceName);
+      _send(() => _request('GET', url, headers), sourceName);
 
   Future<http.Response> postJson(Uri url, Object body,
           {Map<String, String> headers = const {},
           required String sourceName}) =>
       _send(
-          () => client.post(url,
-              headers: {
-                ..._baseHeaders,
-                'Content-Type': 'application/json',
-                ...headers,
-              },
+          () => _request(
+              'POST', url, {'Content-Type': 'application/json', ...headers},
               body: jsonEncode(body)),
           sourceName);
 
   static const _baseHeaders = {'User-Agent': userAgent};
 
+  // Redirects are not followed: dart:io copies every header, Authorization
+  // included, onto the redirected request whatever host it names, and none
+  // of the APIs used here redirect a correct request.
+  http.Request _request(String method, Uri url, Map<String, String> headers,
+      {String? body}) {
+    final request = http.Request(method, url)
+      ..headers.addAll({..._baseHeaders, ...headers})
+      ..followRedirects = false;
+    if (body != null) request.body = body;
+    return request;
+  }
+
+  // A new Request per attempt, not one reused: a sent request's body stream
+  // is spent.
   Future<http.Response> _send(
-      Future<http.Response> Function() request, String sourceName) async {
+      http.Request Function() build, String sourceName) async {
     Object? lastError;
     for (var attempt = 0; attempt < 2; attempt++) {
       if (attempt > 0) await Future<void>.delayed(retryDelay);
       try {
-        final response = await request().timeout(timeout);
+        final response = await _read(build(), sourceName).timeout(timeout);
         if (response.statusCode >= 500) {
           lastError = 'HTTP ${response.statusCode}';
           continue;
@@ -97,6 +131,34 @@ class HttpFetcher {
       }
     }
     throw SourceUnreachable(sourceName, '$lastError');
+  }
+
+  // Read with a cap, not buffered whole by the client: a response of any
+  // size would otherwise sit in memory before anything looked at it.
+  Future<http.Response> _read(http.Request request, String sourceName) async {
+    final streamed = await client.send(request);
+    // The status code, not BaseResponse.isRedirect: that flag is left to the
+    // client implementation, and a mock never sets it.
+    if (const {301, 302, 303, 307, 308}.contains(streamed.statusCode)) {
+      final to = Uri.tryParse(streamed.headers['location'] ?? '')?.host;
+      throw UnexpectedResponse(
+          sourceName,
+          'redirected (HTTP ${streamed.statusCode}'
+          '${to == null || to.isEmpty ? '' : ' to $to'}), '
+          'which is not followed');
+    }
+    final bytes = BytesBuilder(copy: false);
+    await for (final chunk in streamed.stream) {
+      bytes.add(chunk);
+      if (bytes.length > maxBodyBytes) {
+        throw UnexpectedResponse(
+            sourceName, 'the response is larger than $maxBodyBytes bytes');
+      }
+    }
+    return http.Response.bytes(bytes.takeBytes(), streamed.statusCode,
+        headers: streamed.headers,
+        request: request,
+        reasonPhrase: streamed.reasonPhrase);
   }
 }
 

@@ -98,6 +98,97 @@ void main() {
     });
   });
 
+  group('where the token may go', () {
+    test('a page link to another origin is not followed', () async {
+      final seen = <Uri>[];
+      final client = MockClient((req) async {
+        seen.add(req.url);
+        return http.Response('[]', 200, headers: {
+          'link': '<https://evil.example/advisories?page=2>; rel="next"',
+        });
+      });
+      final source = GitHubGlobalSource(GitHubClient(fetcherFor(client),
+          apiBase: Endpoints.defaults.githubApi, token: 'tkn'));
+      await expectLater(source.query([pkg('dio', '1.0.0')]),
+          throwsA(isA<UnexpectedResponse>()));
+      expect(seen.map((u) => u.host), ['api.github.com']);
+    });
+
+    test('a redirect is not followed, and the message says so', () async {
+      final seen = <Uri>[];
+      final client = MockClient((req) async {
+        seen.add(req.url);
+        return http.Response('', 302,
+            headers: {'location': 'https://evil.example/'});
+      });
+      final source = GitHubGlobalSource(GitHubClient(fetcherFor(client),
+          apiBase: Endpoints.defaults.githubApi, token: 'tkn'));
+      await expectLater(
+          source.query([pkg('dio', '1.0.0')]),
+          throwsA(isA<UnexpectedResponse>().having((e) => e.message, 'message',
+              contains('redirected (HTTP 302 to evil.example)'))));
+      expect(seen, hasLength(1));
+    });
+
+    test('an endpoint override must be https, except on localhost', () {
+      expect(
+          () => Endpoints.fromEnvironment(
+              {'DARTVULNCHECK_GITHUB_API_URL': 'http://ghe.example/api/v3'}),
+          throwsA(isA<InvalidEndpoint>()));
+      expect(
+          () => Endpoints.fromEnvironment(
+              {'DARTVULNCHECK_GITHUB_API_URL': 'not a url'}),
+          throwsA(isA<InvalidEndpoint>()));
+      final local = Endpoints.fromEnvironment(
+          {'DARTVULNCHECK_PUB_URL': 'http://127.0.0.1:8080/pub'});
+      expect(local.pubDev.port, 8080);
+      expect(local.overrides.keys, ['DARTVULNCHECK_PUB_URL']);
+      expect(Endpoints.fromEnvironment(const {}).overrides, isEmpty);
+    });
+  });
+
+  group('bounded responses', () {
+    test('pagination stops after the page limit', () async {
+      var calls = 0;
+      final client = MockClient((req) async {
+        calls++;
+        return http.Response('[]', 200, headers: {
+          'link': '<https://api.github.com/advisories?page=${calls + 1}>; '
+              'rel="next"',
+        });
+      });
+      final source = GitHubGlobalSource(GitHubClient(fetcherFor(client),
+          apiBase: Endpoints.defaults.githubApi));
+      await expectLater(source.query([pkg('dio', '1.0.0')]),
+          throwsA(isA<UnexpectedResponse>()));
+      expect(calls, GitHubClient.maxPages);
+    });
+
+    test('OSV paging stops after the page limit', () async {
+      var calls = 0;
+      final client = MockClient((req) async {
+        calls++;
+        return http.Response(
+            '{"results":[{"vulns":[],"next_page_token":"again"}]}', 200);
+      });
+      await expectLater(
+          OsvSource(fetcherFor(client), base: Endpoints.defaults.osvApi)
+              .query([pkg('dio', '1.0.0')]),
+          throwsA(isA<UnexpectedResponse>()));
+      expect(calls, OsvSource.maxPages);
+    });
+
+    test('a body over the size limit is refused', () async {
+      final client =
+          MockClient((req) async => http.Response('[${'1,' * 200}1]', 200));
+      final fetcher = HttpFetcher(client, maxBodyBytes: 100);
+      final source = GitHubGlobalSource(
+          GitHubClient(fetcher, apiBase: Endpoints.defaults.githubApi));
+      await expectLater(source.query([pkg('dio', '1.0.0')]),
+          throwsA(isA<UnexpectedResponse>()));
+    });
+  });
+
   group('withdrawn advisories', () {
     test('a withdrawn advisory in the global database is dropped', () async {
       final api = FakeApi();
@@ -272,6 +363,36 @@ void main() {
       expect(githubRepoFromUrl('git@github.com:a/b.git'), 'a/b');
       expect(githubRepoFromUrl('https://gitlab.com/a/b'), isNull);
       expect(githubRepoFromUrl('https://github.com/a'), isNull);
+    });
+
+    test('an owner or repository that is not a GitHub name is rejected', () {
+      expect(githubRepoFromUrl('https://github.com/a%2F..%2Fx/b'), isNull);
+      expect(githubRepoFromUrl('https://github.com/a/..'), isNull);
+      expect(githubRepoFromUrl('https://github.com/a/b?state=all'), 'a/b');
+      expect(githubRepoFromUrl('https://github.com/dart-lang/sdk.git'),
+          'dart-lang/sdk');
+    });
+
+    test(
+        'a repository advisory cannot speak for a package from another '
+        'repository', () async {
+      final api = FakeApi()
+        ..extraAdvisories['cfug/dio'] = [
+          repositoryAdvisoryJson('GHSA-xxxx-xxxx-xxxx',
+              repo: 'cfug/dio',
+              summary: 'Names http, which pub.dev maps to dart-lang/http',
+              vulnerabilities: [
+                vulnerabilityJson(
+                    ecosystem: 'pub', name: 'http', range: '< 99.0.0'),
+              ]),
+        ];
+      final source = RepositoryPackageSource(
+          PubDevClient(fetcherFor(api.client), base: Endpoints.defaults.pubDev),
+          RepositoryAdvisoryFetcher(githubFor(api)));
+      final result =
+          await source.query([pkg('dio', '4.0.6'), pkg('http', '0.13.2')]);
+      expect(result.advisories.map((a) => a.id),
+          isNot(contains('GHSA-xxxx-xxxx-xxxx')));
     });
 
     test('the repository URL is latest.pubspec.repository on pub.dev',

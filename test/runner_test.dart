@@ -105,6 +105,11 @@ void main() {
       ]);
       expect(r.code, ExitCodes.ok);
       expect(r.out, contains('2 ignored'));
+      expect(
+          r.out,
+          contains('Ignored\n'
+              '  GHSA-9324-jv53-9cc8  dio 4.0.6  CVE-2021-31402\n'
+              '  GHSA-4rgh-jx4f-qfcq  http 0.13.2  CVE-2020-35669\n'));
     });
   });
 
@@ -215,7 +220,8 @@ void main() {
     final r = await run(['app', '--no-sdk', '--verbose']);
     expect(r.err, contains('my_fork (git)'));
     expect(r.err, contains('zeibun_core (path)'));
-    expect(r.err, contains('internal_utils'));
+    expect(r.err, contains('internal_utils (dart.example.com)'));
+    expect(r.err, contains('registry other than pub.dev'));
   });
 
   test('--version prints the version', () async {
@@ -267,6 +273,30 @@ void main() {
     expect(r.code, ExitCodes.error);
     expect(r.err, contains('rejected the token'));
     expect(r.api.requests.where((q) => q.url.host == 'api.osv.dev'), isEmpty);
+  });
+
+  test('an endpoint override is said out loud, and plain http is refused',
+      () async {
+    makeProject(tmp, 'app', 'app.lock');
+    final r = await run([
+      'app',
+      '--no-sdk'
+    ], env: const {
+      'GITHUB_TOKEN': 'tkn',
+      'DARTVULNCHECK_OSV_API_URL': 'https://osv.internal.example',
+    });
+    expect(r.err, contains('DARTVULNCHECK_OSV_API_URL is set'));
+    expect(r.code, ExitCodes.vulnerable);
+
+    final refused = await run([
+      'app',
+      '--no-sdk'
+    ], env: const {
+      'DARTVULNCHECK_GITHUB_API_URL': 'http://ghe.example/api/v3',
+    });
+    expect(refused.code, ExitCodes.error);
+    expect(refused.err, contains('DARTVULNCHECK_GITHUB_API_URL'));
+    expect(refused.api.requests, isEmpty);
   });
 
   test('--help wins over every other option', () async {

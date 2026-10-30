@@ -14,8 +14,10 @@ What it adds over the warning from `flutter pub get`:
 ## Install
 
 ```sh
-dart pub global activate --source git https://github.com/ouchinao/dartvulncheck
+dart pub global activate --source git https://github.com/ouchinao/dartvulncheck --git-ref v0.2.0
 ```
+
+Releases are tagged `v<version>`. Pin one rather than the head of `main`, so that the tool does not change under you between runs.
 
 ## Usage
 
@@ -69,7 +71,7 @@ vulncheck:
     - uses: subosito/flutter-action@v2
       with:
         channel: stable
-    - run: dart pub global activate --source git https://github.com/ouchinao/dartvulncheck
+    - run: dart pub global activate --source git https://github.com/ouchinao/dartvulncheck --git-ref v0.2.0
     - run: dart pub global run dartvulncheck app packages/core
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -89,7 +91,7 @@ vulncheck:
 | Early warning | Repository security advisories (`GET /repos/{owner}/{repo}/security-advisories`) | Packages with a GitHub repository, plus `dart-lang/sdk` and `flutter/flutter` |
 | Fallback | OSV.dev (`POST /v1/querybatch`) | Used only when GitHub is unreachable or answers something that is not an advisory list. Not on rate limiting or a rejected token: those need a fix on your side |
 
-Base URLs can be overridden with `DARTVULNCHECK_GITHUB_API_URL`, `DARTVULNCHECK_OSV_API_URL` and `DARTVULNCHECK_PUB_URL` (for tests and GitHub Enterprise).
+Base URLs can be overridden with `DARTVULNCHECK_GITHUB_API_URL`, `DARTVULNCHECK_OSV_API_URL` and `DARTVULNCHECK_PUB_URL` (for tests and GitHub Enterprise). Overrides must be `https`; `http` is accepted for localhost only, and every override in effect is reported on stderr.
 
 ## Limitations
 
@@ -113,6 +115,8 @@ UPDATE_GOLDENS=1 dart test test/report_test.dart  # after an intended output cha
 ```
 
 The GitHub API responses under `test/fixtures/responses/` are recorded, not written by hand. To refresh them, run the `Record API fixtures` workflow in Actions and copy the files from its artifact over the existing ones.
+
+A release is a version bump in `pubspec.yaml` and `lib/src/version.dart`, an entry in `CHANGELOG.md`, and, once that is merged, a `v<version>` tag on `main`.
 
 Code under `lib/src/` is split by layer: `lockfile/` (input) → `sources/` (lookup) → `match/` (matching) → `report/` (output). `check/` runs them in order, `cli/` handles arguments and exit codes, and `model/` holds the shared types. Only `sources/` talks to the network, so every test runs offline.
 

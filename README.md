@@ -99,6 +99,10 @@ Base URLs can be overridden with `DARTVULNCHECK_GITHUB_API_URL`, `DARTVULNCHECK_
 - Repository advisories describe affected versions in free text written by the maintainers. The forms seen so far are read (`< 3.13.7 (stable), < 3.14.0-315.3.beta (beta)`, `Prior to 3.11.0`, `Dart version prior to 2.18.2, Flutter version prior to 3.3.3`, `>=1.0.0 <= 2.7.1`); anything else is reported as "unverified" and not counted unless `--strict`.
 - Withdrawn advisories are dropped, and advisories of `dart-lang/sdk` that name no package are matched against the SDK only, not against the packages published from that repository (`meta`, `analyzer`, …).
 
+## Security
+
+[docs/threat-model.md](docs/threat-model.md) is a STRIDE review of the tool itself: what it is trusted with, where untrusted input enters, what is mitigated and what is accepted.
+
 ## Development
 
 ```sh

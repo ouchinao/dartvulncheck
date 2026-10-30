@@ -87,4 +87,4 @@ scope** (not this tool's problem to solve).
 - Build with `dart pub get --enforce-lockfile` (or `flutter pub get --enforce-lockfile`), so the lock the tool checked is the lock that was built.
 - Review changes to `pubspec.lock`, `pubspec.yaml` (`ignored_advisories`) and `.fvmrc` in pull requests. The report lists ignores and names the SDK version's origin, but it cannot tell a deliberate change from a hostile one.
 - Give the job a token with `contents: read` only.
-- Install the tool at a release tag (`--git-ref v<version>`) rather than from the head of a branch.
+- Install a named version (`dart pub global activate dartvulncheck <version>`, or `--git-ref v<version>` from git) rather than the head of a branch.

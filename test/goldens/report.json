@@ -38,9 +38,7 @@
       "findings": [
         {
           "id": "GHSA-frr6-h895-5pxp",
-          "aliases": [
-            "GHSA-gggg-hhhh-iiii"
-          ],
+          "aliases": [],
           "kind": "sdk",
           "subject": "Flutter",
           "current": "3.47.6",
@@ -50,36 +48,8 @@
           },
           "dependency": null,
           "severity": "high",
-          "summary": "TLS MitM via compromised eMudhra intermediate CA certificates",
+          "summary": "TLS MitM vulnerability on Android, Windows, and Linux due to compromised eMudhra intermediate CA certificates",
           "url": "https://github.com/dart-lang/sdk/security/advisories/GHSA-frr6-h895-5pxp",
-          "ignored": false
-        },
-        {
-          "id": "GHSA-dddd-eeee-ffff",
-          "aliases": [],
-          "kind": "sdkUnverified",
-          "subject": "Dart",
-          "current": "3.13.5",
-          "fixed": null,
-          "alsoFixedIn": {},
-          "dependency": null,
-          "severity": "low",
-          "summary": "Dart SDK issue without structured ranges",
-          "url": "https://github.com/dart-lang/sdk/security/advisories/GHSA-dddd-eeee-ffff",
-          "ignored": false
-        },
-        {
-          "id": "GHSA-zzzz-yyyy-xxxx",
-          "aliases": [],
-          "kind": "package",
-          "subject": "dio",
-          "current": "4.0.6",
-          "fixed": "4.0.7",
-          "alsoFixedIn": {},
-          "dependency": "direct main",
-          "severity": "critical",
-          "summary": "dio: unreviewed issue published by maintainers",
-          "url": "https://github.com/cfug/dio/security/advisories/GHSA-zzzz-yyyy-xxxx",
           "ignored": false
         },
         {
@@ -113,20 +83,6 @@
           "summary": "http before 0.13.3 vulnerable to header injection",
           "url": "https://github.com/advisories/GHSA-4rgh-jx4f-qfcq",
           "ignored": false
-        },
-        {
-          "id": "GHSA-qqqq-rrrr-ssss",
-          "aliases": [],
-          "kind": "packageUnverified",
-          "subject": "dio",
-          "current": "4.0.6",
-          "fixed": null,
-          "alsoFixedIn": {},
-          "dependency": "direct main",
-          "severity": "moderate",
-          "summary": "Advisory that names no package",
-          "url": "https://github.com/cfug/dio/security/advisories/GHSA-qqqq-rrrr-ssss",
-          "ignored": false
         }
       ]
     },
@@ -148,30 +104,16 @@
           "alsoFixedIn": {},
           "dependency": null,
           "severity": "high",
-          "summary": "TLS MitM via compromised eMudhra intermediate CA certificates",
+          "summary": "TLS MitM vulnerability on Android, Windows, and Linux due to compromised eMudhra intermediate CA certificates",
           "url": "https://github.com/dart-lang/sdk/security/advisories/GHSA-frr6-h895-5pxp",
-          "ignored": false
-        },
-        {
-          "id": "GHSA-dddd-eeee-ffff",
-          "aliases": [],
-          "kind": "sdkUnverified",
-          "subject": "Dart",
-          "current": "3.13.5",
-          "fixed": null,
-          "alsoFixedIn": {},
-          "dependency": null,
-          "severity": "low",
-          "summary": "Dart SDK issue without structured ranges",
-          "url": "https://github.com/dart-lang/sdk/security/advisories/GHSA-dddd-eeee-ffff",
           "ignored": false
         }
       ]
     }
   ],
   "summary": {
-    "findings": 4,
+    "findings": 3,
     "ignored": 0,
-    "unverified": 2
+    "unverified": 0
   }
 }

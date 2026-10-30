@@ -4,12 +4,30 @@
     "cve_id": null,
     "url": "https://api.github.com/repos/dart-lang/sdk/security-advisories/GHSA-frr6-h895-5pxp",
     "html_url": "https://github.com/dart-lang/sdk/security/advisories/GHSA-frr6-h895-5pxp",
-    "summary": "TLS MitM via compromised eMudhra intermediate CA certificates",
-    "description": "(本文は省略)",
+    "summary": "TLS MitM vulnerability on Android, Windows, and Linux due to compromised eMudhra intermediate CA certificates",
+    "description": "### Summary & Impact\r\n\r\nIn October 2026, eight intermediate Certificate Authority (CA) certificates issued by eMudhra were publicly disclosed as compromised due to weak key generation entropy, allowing an attacker on the network path to derive their private keys and forge valid TLS/HTTPS certificates for arbitrary domains.\r\n\r\n### Scope of the Vulnerability\r\n\r\nDart and Flutter applications that make outbound TLS/HTTPS connections (`dart:io`) on Android, Windows, and Linux are vulnerable to Man-in-the-Middle (MitM) TLS interception using certificates forged by the compromised intermediate CAs until rebuilt with a patched SDK:\r\n\r\n- **Android & Windows**: `dart:io` validates TLS certificate chains using its compiled-in BoringSSL engine and does not read OS-managed intermediate certificate blocklists.\r\n- **Linux**: Applications are affected only in environments (such as static containers or unpatched hosts) that have not updated their system `ca-certificates` bundle to remove the affected roots.\r\n- **Web, iOS, and macOS**: Applications on Web, iOS, and macOS are **not affected**, as they rely on browser or Apple `Security.framework` certificate verification.\r\n\r\n### Affected Platforms & Versions\r\n\r\n- **Affected Platforms**: Android, Windows, and unpatched/containerized Linux\r\n- **Affected Versions**:\r\n    - Dart SDK stable versions prior to `3.13.7` (and beta versions prior to `3.14.0-315.3.beta`)\r\n    - Flutter SDK stable versions prior to `3.47.8` (and beta versions prior to `3.50.0-0.2.pre`)\r\n\r\n### Patches & Remediation\r\n\r\nUpgrade your SDK, rebuild your Android, Windows, and Linux applications or compiled binaries, and redeploy them:\r\n\r\n- **Dart SDK**: Fixed in stable `3.13.7` and beta `3.14.0-315.3.beta`\r\n- **Flutter SDK**: Fixed in stable `3.47.8` and beta `3.50.0-0.2.pre`\r\n\r\n#### What changed\r\n\r\n1. BoringSSL was updated ([`ecb2c83516`](https://github.com/dart-lang/sdk/commit/ecb2c835161a7ec2e106d961b2eeda6fde8666f8)) to explicitly distrust the compromised eMudhra intermediate certificates during TLS chain verification.\r\n2. On Android 14+, `dart:io` now loads system root certificates from the updatable Conscrypt APEX module ([`a9e26a21af`](https://github.com/dart-lang/sdk/commit/a9e26a21af316358c9801681364404ea6e68c767)), honoring future over-the-air root store revocations delivered via Google Play system updates.\r\n\r\n### References\r\n\r\n- [Protecting Chrome and Android users from compromised eMudhra intermediate CA certificates](https://blog.google/security/protecting-chrome-and-android-users-from-compromised-emudhra-intermediate-ca-certificates/)\r\n- [Public disclosure details](https://emudhra.we-have-a-problem.com/)",
     "severity": "high",
     "author": null,
     "publisher": {
-      "login": "maintainer"
+      "login": "kevmoo",
+      "id": 17034,
+      "node_id": "MDQ6VXNlcjE3MDM0",
+      "avatar_url": "https://avatars.githubusercontent.com/u/17034?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/kevmoo",
+      "html_url": "https://github.com/kevmoo",
+      "followers_url": "https://api.github.com/users/kevmoo/followers",
+      "following_url": "https://api.github.com/users/kevmoo/following{/other_user}",
+      "gists_url": "https://api.github.com/users/kevmoo/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/kevmoo/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/kevmoo/subscriptions",
+      "organizations_url": "https://api.github.com/users/kevmoo/orgs",
+      "repos_url": "https://api.github.com/users/kevmoo/repos",
+      "events_url": "https://api.github.com/users/kevmoo/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/kevmoo/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
     },
     "identifiers": [
       {
@@ -18,9 +36,9 @@
       }
     ],
     "state": "published",
-    "created_at": "2026-10-20T00:00:00Z",
-    "updated_at": "2026-10-23T00:00:00Z",
-    "published_at": "2026-10-23T00:00:00Z",
+    "created_at": null,
+    "updated_at": "2026-10-23T18:51:07Z",
+    "published_at": "2026-10-23T18:51:07Z",
     "closed_at": null,
     "withdrawn_at": null,
     "submission": null,
@@ -28,113 +46,750 @@
       {
         "package": {
           "ecosystem": "other",
-          "name": "Flutter"
+          "name": "Dart SDK"
         },
-        "vulnerable_version_range": "< 3.47.8",
-        "patched_versions": "3.47.8",
+        "vulnerable_version_range": "< 3.13.7 (stable), < 3.14.0-315.3.beta (beta)",
+        "patched_versions": "3.13.7, 3.14.0-315.3.beta",
         "vulnerable_functions": []
       },
       {
         "package": {
           "ecosystem": "other",
-          "name": "Dart SDK"
+          "name": "Flutter SDK"
         },
-        "vulnerable_version_range": "< 3.13.7",
-        "patched_versions": "3.13.7",
+        "vulnerable_version_range": "< 3.47.8 (stable), < 3.50.0-0.2.pre (beta)",
+        "patched_versions": "3.47.8, 3.50.0-0.2.pre",
         "vulnerable_functions": []
       }
     ],
-    "cvss": null,
-    "cwes": [],
-    "cwe_ids": [],
+    "cvss_severities": {
+      "cvss_v3": {
+        "vector_string": null,
+        "score": null
+      },
+      "cvss_v4": {
+        "vector_string": null,
+        "score": null
+      }
+    },
+    "cwes": [
+      {
+        "cwe_id": "CWE-295",
+        "name": "Improper Certificate Validation"
+      }
+    ],
+    "cwe_ids": [
+      "CWE-295"
+    ],
     "credits": [],
     "credits_detailed": [],
-    "collaborating_users": [],
-    "collaborating_teams": [],
-    "private_fork": null
+    "collaborating_users": null,
+    "collaborating_teams": null,
+    "private_fork": null,
+    "comments": 0,
+    "cvss": {
+      "vector_string": null,
+      "score": null
+    }
   },
   {
-    "ghsa_id": "GHSA-aaaa-bbbb-cccc",
-    "cve_id": "CVE-2025-00001",
-    "url": "https://api.github.com/repos/dart-lang/sdk/security-advisories/GHSA-aaaa-bbbb-cccc",
-    "html_url": "https://github.com/dart-lang/sdk/security/advisories/GHSA-aaaa-bbbb-cccc",
-    "summary": "Old Dart SDK issue fixed long ago",
-    "description": "(本文は省略)",
-    "severity": "moderate",
+    "ghsa_id": "GHSA-q739-79rh-vmvp",
+    "cve_id": "CVE-2026-27704",
+    "url": "https://api.github.com/repos/dart-lang/sdk/security-advisories/GHSA-q739-79rh-vmvp",
+    "html_url": "https://github.com/dart-lang/sdk/security/advisories/GHSA-q739-79rh-vmvp",
+    "summary": "Zip slip in Dart Pub package extraction",
+    "description": "### Impact\r\n\r\nWhen the pub client (`dart pub` and `flutter pub`) extracts a package in the pub cache, a malicious package archive can have files extracted outside the destination directory in the `PUB_CACHE`. \r\n\r\n#### Details of the attack\r\n\r\nThe attack works by combining a symlink that links to a parent directory like:\r\n\r\n`a/link -> ../b`\r\n\r\nwith a payload file that traverses up from that directory.\r\n\r\n`a/link/../`\r\n\r\nPub will check that `a/link/../` is inside the destination, but write to the resolved path `../b/..` or `..`.\r\n\r\n### Patches\r\n\r\nA fix has been landed in:\r\nhttps://github.com/dart-lang/pub/commit/26c6985c742593d081f8b58450f463a584a4203a\r\nBy normalizing the file path before writing file, the attacker can no longer traverse up via a symlink.\r\n\r\nThis patch is released in Dart 3.11.0 and Flutter 3.41.0.\r\n\r\n### Workarounds\r\n\r\nAll packages on pub.dev have been vetted for this vulnerability. And new packages are no longer allowed to contain symlinks.\r\n(the pub client itself doesn't upload symlinks, but duplicates the linked entry, and has been doing this for years).\r\n\r\nIf all your dependencies are all\r\n* from pub.dev or \r\n* from third-party repositories you trust to not contain malicious code or\r\n* git dependencies\r\n\r\nyou are not affected by this vulnerability.\r\n\r\n### References\r\n_Are there any links users can visit to find out more?_\r\n",
+    "severity": "low",
     "author": null,
     "publisher": {
-      "login": "maintainer"
+      "login": "athomas",
+      "id": 19993735,
+      "node_id": "MDQ6VXNlcjE5OTkzNzM1",
+      "avatar_url": "https://avatars.githubusercontent.com/u/19993735?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/athomas",
+      "html_url": "https://github.com/athomas",
+      "followers_url": "https://api.github.com/users/athomas/followers",
+      "following_url": "https://api.github.com/users/athomas/following{/other_user}",
+      "gists_url": "https://api.github.com/users/athomas/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/athomas/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/athomas/subscriptions",
+      "organizations_url": "https://api.github.com/users/athomas/orgs",
+      "repos_url": "https://api.github.com/users/athomas/repos",
+      "events_url": "https://api.github.com/users/athomas/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/athomas/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
     },
     "identifiers": [
       {
-        "value": "GHSA-aaaa-bbbb-cccc",
+        "value": "GHSA-q739-79rh-vmvp",
         "type": "GHSA"
       },
       {
-        "value": "CVE-2025-00001",
+        "value": "CVE-2026-27704",
         "type": "CVE"
       }
     ],
     "state": "published",
-    "created_at": "2026-10-20T00:00:00Z",
-    "updated_at": "2026-10-23T00:00:00Z",
-    "published_at": "2026-10-23T00:00:00Z",
+    "created_at": null,
+    "updated_at": "2026-02-23T19:13:52Z",
+    "published_at": "2026-02-23T19:13:52Z",
     "closed_at": null,
     "withdrawn_at": null,
     "submission": null,
     "vulnerabilities": [
       {
         "package": {
-          "ecosystem": "other",
+          "ecosystem": "dart sdk",
           "name": "Dart SDK"
         },
-        "vulnerable_version_range": "< 3.5.0",
-        "patched_versions": "3.5.0",
+        "vulnerable_version_range": "Prior to 3.11.0",
+        "patched_versions": "3.11.0",
+        "vulnerable_functions": []
+      },
+      {
+        "package": {
+          "ecosystem": "flutter sdk",
+          "name": "Flutter SDK"
+        },
+        "vulnerable_version_range": "Prior to 3.41.0",
+        "patched_versions": "3.41.0",
         "vulnerable_functions": []
       }
     ],
-    "cvss": null,
+    "cvss_severities": {
+      "cvss_v3": {
+        "vector_string": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:N/I:N/A:N",
+        "score": null
+      },
+      "cvss_v4": {
+        "vector_string": null,
+        "score": null
+      }
+    },
     "cwes": [],
     "cwe_ids": [],
-    "credits": [],
-    "credits_detailed": [],
-    "collaborating_users": [],
-    "collaborating_teams": [],
-    "private_fork": null
+    "credits": [
+      {
+        "login": "splitline",
+        "type": "finder"
+      }
+    ],
+    "credits_detailed": [
+      {
+        "user": {
+          "login": "splitline",
+          "id": 10939796,
+          "node_id": "MDQ6VXNlcjEwOTM5Nzk2",
+          "avatar_url": "https://avatars.githubusercontent.com/u/10939796?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/splitline",
+          "html_url": "https://github.com/splitline",
+          "followers_url": "https://api.github.com/users/splitline/followers",
+          "following_url": "https://api.github.com/users/splitline/following{/other_user}",
+          "gists_url": "https://api.github.com/users/splitline/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/splitline/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/splitline/subscriptions",
+          "organizations_url": "https://api.github.com/users/splitline/orgs",
+          "repos_url": "https://api.github.com/users/splitline/repos",
+          "events_url": "https://api.github.com/users/splitline/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/splitline/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "type": "finder",
+        "state": "accepted"
+      }
+    ],
+    "collaborating_users": null,
+    "collaborating_teams": null,
+    "private_fork": null,
+    "comments": 1,
+    "cvss": {
+      "vector_string": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:N/I:N/A:N",
+      "score": null
+    }
   },
   {
-    "ghsa_id": "GHSA-dddd-eeee-ffff",
-    "cve_id": null,
-    "url": "https://api.github.com/repos/dart-lang/sdk/security-advisories/GHSA-dddd-eeee-ffff",
-    "html_url": "https://github.com/dart-lang/sdk/security/advisories/GHSA-dddd-eeee-ffff",
-    "summary": "Dart SDK issue without structured ranges",
-    "description": "(本文は省略)",
-    "severity": "low",
+    "ghsa_id": "GHSA-m9pm-2598-57rj",
+    "cve_id": "CVE-2022-3095",
+    "url": "https://api.github.com/repos/dart-lang/sdk/security-advisories/GHSA-m9pm-2598-57rj",
+    "html_url": "https://github.com/dart-lang/sdk/security/advisories/GHSA-m9pm-2598-57rj",
+    "summary": "Vulnerability: Auth Bypass in Dart due to incorrect parsing of the backslash characters in the URL",
+    "description": "**Summary & Impact**\r\nThere is a auth bypass vulnerability in Dart SDK, specifically `dart:uri` core library, used to parse and validate URLs. This library is vulnerable to the backslash-trick wherein backslash is not recognized as equivalent to forward slash in URLs. This incorrect parsing behavior can be used to bypass certain types of URL validation checks. When used in conjunction with the `dart:html` library it can lead to more severe issues such as unwanted data disclosure, cross-site scripting etc.\r\n\r\n**Affected platforms & versions**\r\nDart versions prior to 2.18.2\r\nFlutter versions prior to 3.3.3\r\n\r\n**Mitigations if any**\r\nN/A\r\n\r\n**Workarounds if any**\r\nN/A\r\n\r\n**Remediation options**\r\nThis issue [was recently fixed](https://dart-review.googlesource.com/c/sdk/+/258120), and the fix is available in Dart SDK stable hotfix version 2.18.2\r\n\r\n**References**\r\n\r\n\r\n**Acknowledgments**\r\nWe thank  Sohom Datta, Cryptonite, MIT Manipal for reporting this issue.\r\n",
+    "severity": "medium",
     "author": null,
     "publisher": {
-      "login": "maintainer"
+      "login": "khyati82",
+      "id": 61220466,
+      "node_id": "MDQ6VXNlcjYxMjIwNDY2",
+      "avatar_url": "https://avatars.githubusercontent.com/u/61220466?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/khyati82",
+      "html_url": "https://github.com/khyati82",
+      "followers_url": "https://api.github.com/users/khyati82/followers",
+      "following_url": "https://api.github.com/users/khyati82/following{/other_user}",
+      "gists_url": "https://api.github.com/users/khyati82/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/khyati82/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/khyati82/subscriptions",
+      "organizations_url": "https://api.github.com/users/khyati82/orgs",
+      "repos_url": "https://api.github.com/users/khyati82/repos",
+      "events_url": "https://api.github.com/users/khyati82/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/khyati82/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
     },
     "identifiers": [
       {
-        "value": "GHSA-dddd-eeee-ffff",
+        "value": "GHSA-m9pm-2598-57rj",
         "type": "GHSA"
+      },
+      {
+        "value": "CVE-2022-3095",
+        "type": "CVE"
       }
     ],
     "state": "published",
-    "created_at": "2026-10-20T00:00:00Z",
-    "updated_at": "2026-10-23T00:00:00Z",
-    "published_at": "2026-10-23T00:00:00Z",
+    "created_at": null,
+    "updated_at": "2022-09-28T20:06:51Z",
+    "published_at": "2022-09-28T20:06:51Z",
     "closed_at": null,
     "withdrawn_at": null,
     "submission": null,
-    "vulnerabilities": [],
-    "cvss": null,
+    "vulnerabilities": [
+      {
+        "package": {
+          "ecosystem": "core sdk",
+          "name": "Dart SDK"
+        },
+        "vulnerable_version_range": "Dart version prior to 2.18.2, Flutter version prior to 3.3.3",
+        "patched_versions": "Dart version 2.18.2, Flutter version 3.3.3",
+        "vulnerable_functions": []
+      }
+    ],
+    "cvss_severities": {
+      "cvss_v3": {
+        "vector_string": null,
+        "score": null
+      },
+      "cvss_v4": {
+        "vector_string": null,
+        "score": null
+      }
+    },
+    "cwes": [],
+    "cwe_ids": [],
+    "credits": [
+      {
+        "login": "sohomdatta1",
+        "type": "analyst"
+      }
+    ],
+    "credits_detailed": [
+      {
+        "user": {
+          "login": "sohomdatta1",
+          "id": 55270802,
+          "node_id": "MDQ6VXNlcjU1MjcwODAy",
+          "avatar_url": "https://avatars.githubusercontent.com/u/55270802?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/sohomdatta1",
+          "html_url": "https://github.com/sohomdatta1",
+          "followers_url": "https://api.github.com/users/sohomdatta1/followers",
+          "following_url": "https://api.github.com/users/sohomdatta1/following{/other_user}",
+          "gists_url": "https://api.github.com/users/sohomdatta1/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/sohomdatta1/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/sohomdatta1/subscriptions",
+          "organizations_url": "https://api.github.com/users/sohomdatta1/orgs",
+          "repos_url": "https://api.github.com/users/sohomdatta1/repos",
+          "events_url": "https://api.github.com/users/sohomdatta1/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/sohomdatta1/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "type": "analyst",
+        "state": "accepted"
+      }
+    ],
+    "collaborating_users": null,
+    "collaborating_teams": null,
+    "private_fork": null,
+    "comments": 1,
+    "cvss": {
+      "vector_string": null,
+      "score": null
+    }
+  },
+  {
+    "ghsa_id": "GHSA-c8mh-jj22-xg5h",
+    "cve_id": "CVE-2022-0451",
+    "url": "https://api.github.com/repos/dart-lang/sdk/security-advisories/GHSA-c8mh-jj22-xg5h",
+    "html_url": "https://github.com/dart-lang/sdk/security/advisories/GHSA-c8mh-jj22-xg5h",
+    "summary": "Auth Bypass in Dart SDK when handling cross origin redirect",
+    "description": "### Summary & Impact\r\n\r\nThis is a auth bypass vulnerability in Dart SDK that exposes sensitive information to unauthorized actors.  For Dart SDK versions prior to 2.16.0, HttpClient in dart:io library includes sensitive headers when handling cross origin redirect if those headers are set explicitly when making a request. These sensitive headers may contain sensitive information that can be used by malicious actors to hijack a session, forging a request and impersonation. The relevant headers are \"authorization\", \"www-authenticate\",  \"cookie\", and \"cookie2\"\r\nBy default, HttpClient handles redirection logic. If a request is sent to example.com with a sensitive  header and it redirects to altostrat.com,  they might not expect altostrat.com to receive authorization header or in worst case scenario altostrat.com might collect those credentials and use them to do actions without the user's consent.\r\n\r\n### Scope of the vulnerability\r\n\r\nThis vulnerability only impacts HttpClient API in the dart:io library and only when sensitive headers are set explicitly.\r\n\r\n### Affected platforms & versions\r\n\r\n- All platforms with dart:io (except web)\r\n- Dart versions prior to 2.16.0\r\n- Flutter versions prior to 2.10.0\r\n\r\n### Mitigations if any\r\n N/A\r\n\r\n### Workarounds if any:\r\nThe workaround is to explicitly handle redirect logic\r\n\r\n### Workaround example\r\n\r\n```dart\r\nfinal client = HttpClient();\r\nvar uri = Uri.parse('http://localhost/');\r\nvar request = await client.getUrl(uri);\r\nrequest.followRedirects = false;\r\nvar response = await request.close();\r\nwhile (response.isRedirect) {\r\n  await response.drain();\r\n  final location = response.headers.value(HttpHeaders.locationHeader);\r\n  if (location != null) {\r\n    uri = uri.resolve(location);\r\n    request = await client.getUrl(uri);\r\n\r\n    // Set the body or headers as desired.\r\n    request.followRedirects = false;\r\n    response = await request.close();\r\n  }\r\n}\r\n```\r\n\r\n### Remediation options:\r\nThis issue is fixed in Dart SDK version 2.16. In Dart SDK version 2.16 or greater, the  \"authorization\", \"www-authenticate\", \"cookie\", \"cookie2\" headers are dropped on cross-origin redirects. \r\n\r\n### References\r\n\r\n- Fixed in commit https://github.com/dart-lang/sdk/commit/57db739be0ad4629079bfa94840064f615d35abc \r\n- `HttpClient` usage - https://api.dart.dev/dart-io/HttpClient-class.html\r\n\r\n### Acknowledgments\r\nWe thank Misir Jafarov for reporting this issue.\r\n",
+    "severity": "medium",
+    "author": null,
+    "publisher": {
+      "login": "mit-mit",
+      "id": 13644170,
+      "node_id": "MDQ6VXNlcjEzNjQ0MTcw",
+      "avatar_url": "https://avatars.githubusercontent.com/u/13644170?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/mit-mit",
+      "html_url": "https://github.com/mit-mit",
+      "followers_url": "https://api.github.com/users/mit-mit/followers",
+      "following_url": "https://api.github.com/users/mit-mit/following{/other_user}",
+      "gists_url": "https://api.github.com/users/mit-mit/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/mit-mit/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/mit-mit/subscriptions",
+      "organizations_url": "https://api.github.com/users/mit-mit/orgs",
+      "repos_url": "https://api.github.com/users/mit-mit/repos",
+      "events_url": "https://api.github.com/users/mit-mit/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/mit-mit/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "identifiers": [
+      {
+        "value": "GHSA-c8mh-jj22-xg5h",
+        "type": "GHSA"
+      },
+      {
+        "value": "CVE-2022-0451",
+        "type": "CVE"
+      }
+    ],
+    "state": "published",
+    "created_at": null,
+    "updated_at": "2022-02-03T17:33:28Z",
+    "published_at": "2022-02-03T17:33:28Z",
+    "closed_at": null,
+    "withdrawn_at": null,
+    "submission": null,
+    "vulnerabilities": [
+      {
+        "package": {
+          "ecosystem": "dart sdk",
+          "name": "Core SDK"
+        },
+        "vulnerable_version_range": "Dart version prior to 2.16.0, Flutter version < 2.10.0",
+        "patched_versions": "Dart version 2.16.0, Flutter version 2.10.0",
+        "vulnerable_functions": []
+      }
+    ],
+    "cvss_severities": {
+      "cvss_v3": {
+        "vector_string": null,
+        "score": null
+      },
+      "cvss_v4": {
+        "vector_string": null,
+        "score": null
+      }
+    },
     "cwes": [],
     "cwe_ids": [],
     "credits": [],
     "credits_detailed": [],
-    "collaborating_users": [],
-    "collaborating_teams": [],
-    "private_fork": null
+    "collaborating_users": null,
+    "collaborating_teams": null,
+    "private_fork": null,
+    "comments": 0,
+    "cvss": {
+      "vector_string": null,
+      "score": null
+    }
+  },
+  {
+    "ghsa_id": "GHSA-r32f-vhjp-qhj7",
+    "cve_id": "CVE-2021-22568",
+    "url": "https://api.github.com/repos/dart-lang/sdk/security-advisories/GHSA-r32f-vhjp-qhj7",
+    "html_url": "https://github.com/dart-lang/sdk/security/advisories/GHSA-r32f-vhjp-qhj7",
+    "summary": "Publishing to third-party package repositories may expose pub.dev credentials",
+    "description": "### Impact\r\nA malicious _third-party package repository_ may impersonate a user on [pub.dev][1] for up to one hour after the user has published a package to that third-party package repository using `dart pub publish`.\r\n\r\nWhen publishing Dart packages to third-party package repositories using `dart pub publish`, Dart SDKs prior to `2.15.0` will authorize the request using an OAuth2 `access_token` intended for authentication with [pub.dev][1]. Thus, a malicious third-party package repository could use this `access_token` to impersonate the user on [pub.dev][1]. The `access_token` is usually only valid for up to one hour, but an attacker could persist access by using the `access_token` to obtain uploader permissions.\r\n\r\nThis only affects users who publish packages to a third-party package repository by:\r\n 1) Specifying `publish_to: https://my-pub-server.com/` in `pubspec.yaml` and publishing using `dart pub publish`;\r\n 2) Defining environment variable `PUB_HOSTED_URL=https://my-pub-server.com/` and publishing using `dart pub publish`; or;\r\n 3) Publishing using `dart pub publish --server https://my-pub-server.com/`.\r\n\r\n### Patches\r\nThis is fixed as of Dart SDK version `2.15.0`.\r\n\r\nAs of Dart SDK version `2.15.0` requests to third-party package repositories will no longer include an OAuth2 `access_token` intended for [pub.dev][1]. Requests to third-party package repositories can be authenticated using opaque tokens passed to the Dart SDK using `dart pub token add https://my-pub-server.com`.\r\n\r\n### Workarounds\r\nAvoid publishing to untrusted third-party package repositories with `dart pub publish` using a Dart SDK prior to `2.15.0`.\r\n\r\n### Mitigations\r\nIf you've published a package to a third-party package repository, consider doing an audit of all your account activity on the [pub.dev][1] public package repository. You can use the pub.dev [activity log](https://pub.dev/my-activity-log) for this.\r\n\r\n### References\r\n * Fixed in [dart-lang/pub@`bbdac80`](https://github.com/dart-lang/pub/commit/bbdac802eb27ab8aa2af6732f739e0b51561d718#diff-5fea24e813d36f3b0e47536ee2c1d5779d54bfd0991e693577b7e8a9fd7f141cR145-R183)\r\n * Documentation of [use of third-party package repositories][2].\r\n * Documentation of [`dart pub token` for authentication][3] with third-party package repositories.\r\n * [Package Repository Specification version 2][4].\r\n\r\n\r\n[1]: https://pub.dev\r\n[2]: https://dart.dev/tools/pub/custom-package-repositories\r\n[3]: https://dart.dev/tools/pub/cmd/pub-token\r\n[4]: https://github.com/dart-lang/pub/blob/master/doc/repository-spec-v2.md",
+    "severity": "medium",
+    "author": null,
+    "publisher": {
+      "login": "mit-mit",
+      "id": 13644170,
+      "node_id": "MDQ6VXNlcjEzNjQ0MTcw",
+      "avatar_url": "https://avatars.githubusercontent.com/u/13644170?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/mit-mit",
+      "html_url": "https://github.com/mit-mit",
+      "followers_url": "https://api.github.com/users/mit-mit/followers",
+      "following_url": "https://api.github.com/users/mit-mit/following{/other_user}",
+      "gists_url": "https://api.github.com/users/mit-mit/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/mit-mit/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/mit-mit/subscriptions",
+      "organizations_url": "https://api.github.com/users/mit-mit/orgs",
+      "repos_url": "https://api.github.com/users/mit-mit/repos",
+      "events_url": "https://api.github.com/users/mit-mit/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/mit-mit/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "identifiers": [
+      {
+        "value": "GHSA-r32f-vhjp-qhj7",
+        "type": "GHSA"
+      },
+      {
+        "value": "CVE-2021-22568",
+        "type": "CVE"
+      }
+    ],
+    "state": "published",
+    "created_at": null,
+    "updated_at": "2021-12-08T15:36:08Z",
+    "published_at": "2021-12-08T15:36:08Z",
+    "closed_at": null,
+    "withdrawn_at": null,
+    "submission": null,
+    "vulnerabilities": [
+      {
+        "package": {
+          "ecosystem": "dart",
+          "name": ""
+        },
+        "vulnerable_version_range": "<2.15.0",
+        "patched_versions": "2.15.0",
+        "vulnerable_functions": []
+      }
+    ],
+    "cvss_severities": {
+      "cvss_v3": {
+        "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+        "score": 6.5
+      },
+      "cvss_v4": {
+        "vector_string": null,
+        "score": null
+      }
+    },
+    "cwes": [],
+    "cwe_ids": [],
+    "credits": [],
+    "credits_detailed": [],
+    "collaborating_users": null,
+    "collaborating_teams": null,
+    "private_fork": null,
+    "comments": 0,
+    "cvss": {
+      "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+      "score": 6.5
+    }
+  },
+  {
+    "ghsa_id": "GHSA-8pcp-6qc9-rqmv",
+    "cve_id": "CVE-2021-22567",
+    "url": "https://api.github.com/repos/dart-lang/sdk/security-advisories/GHSA-8pcp-6qc9-rqmv",
+    "html_url": "https://github.com/dart-lang/sdk/security/advisories/GHSA-8pcp-6qc9-rqmv",
+    "summary": "Unsafe bidirectional unicode characters",
+    "description": "### Impact\r\n_What kind of vulnerability is it? Who is impacted?_\r\n\r\nBidirectional Unicode text can be interpreted and compiled differently than how it appears in editors and code-review tools.  Exploiting this an attacker could embed source that is invisible to a code reviewer but that modifies the behavior of a program in unexpected ways.  This vulnerability impacts all projects that allow Dart source contributions.\r\n\r\n### Patches\r\n_Has the problem been patched? What versions should users upgrade to?_\r\n\r\nDart `2.15.0` ([52519ea](https://github.com/dart-lang/sdk/commit/52519ea8eb4780c468c4c2ed00e7c8046ccfed41)) introduces a new analysis warning flagging bidirectional Unicode. Users should upgrade to Dart `2.15.0` or later.\r\n\r\n### Workarounds\r\n_Is there a way for users to fix or remediate the vulnerability without upgrading?_\r\n\r\nUsers could grep for bidirectional Unicode text sequences or review all sources in editors that display invisible characters.\r\n\r\n### Detailed example\r\n\r\nConsider the following Dart source code:\r\n\r\n```dart\r\nvoid main() {\r\n  final accessLevel = 'user';\r\n\r\n  if (accessLevel == 'user‮ ⁦// Check if admin⁩ ⁦') {\r\n    print('You are a regular user.');\r\n  } else {\r\n    print('You are an admin.');\r\n  }\r\n}\r\n```\r\n\r\nThis looks unsuspicious, and you may assume that this will print `'You are a regular user.'`. However, if the code uses bidirectional Unicode characters the `accessLevel` check may actually be quite different from how an editor of IDE might render it. The code above uses Unicode bidirectional characters to test for a very different string, as seen in this gist:\r\nhttps://gist.github.com/mit-mit/7dda00ca6278ce7d2555f78d59d9e67b?h=1\r\n\r\nAs a result, the code prints that the user is an admin:\r\n```console\r\n$ dart run bin/cvetest.dart\r\nYou are an admin.\r\n```\r\n\r\nThe new analysis warning introduced in Dart 2.15.0 flags this:\r\n\r\n```console\r\n$ dart analyze\r\nAnalyzing cvetest...                   2.6s\r\n\r\n   info • bin/cvetest.dart:4:27 • The Unicode code point 'U+202E' changes the appearance of text from how it's interpreted by\r\n          the compiler. Try removing the code point or using the Unicode escape sequence '\\u202E'. •\r\n          text_direction_code_point_in_literal\r\n```\r\n\r\n### References\r\n_Are there any links users can visit to find out more?_\r\n\r\nhttps://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-42694\r\n\r\n### For more information\r\nSee our [community page](https://dart.dev/community) to find ways to contact the team.\r\n",
+    "severity": "medium",
+    "author": null,
+    "publisher": {
+      "login": "mit-mit",
+      "id": 13644170,
+      "node_id": "MDQ6VXNlcjEzNjQ0MTcw",
+      "avatar_url": "https://avatars.githubusercontent.com/u/13644170?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/mit-mit",
+      "html_url": "https://github.com/mit-mit",
+      "followers_url": "https://api.github.com/users/mit-mit/followers",
+      "following_url": "https://api.github.com/users/mit-mit/following{/other_user}",
+      "gists_url": "https://api.github.com/users/mit-mit/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/mit-mit/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/mit-mit/subscriptions",
+      "organizations_url": "https://api.github.com/users/mit-mit/orgs",
+      "repos_url": "https://api.github.com/users/mit-mit/repos",
+      "events_url": "https://api.github.com/users/mit-mit/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/mit-mit/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "identifiers": [
+      {
+        "value": "GHSA-8pcp-6qc9-rqmv",
+        "type": "GHSA"
+      },
+      {
+        "value": "CVE-2021-22567",
+        "type": "CVE"
+      }
+    ],
+    "state": "published",
+    "created_at": null,
+    "updated_at": "2021-12-08T14:32:33Z",
+    "published_at": "2021-12-08T14:32:33Z",
+    "closed_at": null,
+    "withdrawn_at": null,
+    "submission": null,
+    "vulnerabilities": [
+      {
+        "package": {
+          "ecosystem": "dart",
+          "name": "Core SDK"
+        },
+        "vulnerable_version_range": "<2.15.0",
+        "patched_versions": "2.15.0",
+        "vulnerable_functions": []
+      }
+    ],
+    "cvss_severities": {
+      "cvss_v3": {
+        "vector_string": null,
+        "score": null
+      },
+      "cvss_v4": {
+        "vector_string": null,
+        "score": null
+      }
+    },
+    "cwes": [],
+    "cwe_ids": [],
+    "credits": [],
+    "credits_detailed": [],
+    "collaborating_users": null,
+    "collaborating_teams": null,
+    "private_fork": null,
+    "comments": 0,
+    "cvss": {
+      "vector_string": null,
+      "score": null
+    }
+  },
+  {
+    "ghsa_id": "GHSA-3rfv-4jvg-9522",
+    "cve_id": "CVE-2021-22540",
+    "url": "https://api.github.com/repos/dart-lang/sdk/security-advisories/GHSA-3rfv-4jvg-9522",
+    "html_url": "https://github.com/dart-lang/sdk/security/advisories/GHSA-3rfv-4jvg-9522",
+    "summary": "XSS vulnerability in dart:html",
+    "description": "### Impact\r\nThe validation logic that exists in dart:html for creating DOM nodes from text (String instances) missed a potential vulnerability when the HTML text contained templates. The validation logic would reset a flag that indicated that the text was sanitized when it came across template tags, enabling XSS attacks to use DOM clobbering for nodes occurring after a template tag.\r\n\r\nAffected APIs and more information on how NodeValidator is used to prevent attacks can be found in the previous security advisory: [XSS vulnerability in dart:html](https://github.com/dart-lang/sdk/security/advisories/GHSA-hfq3-v9pv-p627)\r\n\r\nAll Dart SDK releases including and before 2.12.2 and 2.14.0-2.0.dev are affected.\r\n\r\n### Patches\r\nIf you're using a stable release of Dart, version 2.12.3 or later contains changes that address this vulnerability.\r\nIf you're using a dev release of Dart, version 2.14.0-3.0.dev or later contains these changes.\r\n\r\n### Workarounds\r\nPlease see the related security advisory above for workarounds if you cannot update the Dart SDK.\r\n\r\n### References\r\nAn article on [DOM clobbering.](https://portswigger.net/web-security/dom-based/dom-clobbering)\r\n\r\n### For more information\r\nSee [our community page](https://dart.dev/community) to find ways to contact the team.\r\n\r\n### Thanks\r\nThanks to **Vincenzo di Cicco** for finding and reporting this additional vulnerability.\r\n",
+    "severity": "medium",
+    "author": null,
+    "publisher": {
+      "login": "mit-mit",
+      "id": 13644170,
+      "node_id": "MDQ6VXNlcjEzNjQ0MTcw",
+      "avatar_url": "https://avatars.githubusercontent.com/u/13644170?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/mit-mit",
+      "html_url": "https://github.com/mit-mit",
+      "followers_url": "https://api.github.com/users/mit-mit/followers",
+      "following_url": "https://api.github.com/users/mit-mit/following{/other_user}",
+      "gists_url": "https://api.github.com/users/mit-mit/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/mit-mit/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/mit-mit/subscriptions",
+      "organizations_url": "https://api.github.com/users/mit-mit/orgs",
+      "repos_url": "https://api.github.com/users/mit-mit/repos",
+      "events_url": "https://api.github.com/users/mit-mit/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/mit-mit/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "identifiers": [
+      {
+        "value": "GHSA-3rfv-4jvg-9522",
+        "type": "GHSA"
+      },
+      {
+        "value": "CVE-2021-22540",
+        "type": "CVE"
+      }
+    ],
+    "state": "published",
+    "created_at": null,
+    "updated_at": "2021-04-28T18:28:00Z",
+    "published_at": "2021-04-28T18:28:00Z",
+    "closed_at": null,
+    "withdrawn_at": null,
+    "submission": null,
+    "vulnerabilities": [
+      {
+        "package": {
+          "ecosystem": "",
+          "name": ""
+        },
+        "vulnerable_version_range": "<2.12.2",
+        "patched_versions": "2.12.3",
+        "vulnerable_functions": []
+      }
+    ],
+    "cvss_severities": {
+      "cvss_v3": {
+        "vector_string": null,
+        "score": null
+      },
+      "cvss_v4": {
+        "vector_string": null,
+        "score": null
+      }
+    },
+    "cwes": [],
+    "cwe_ids": [],
+    "credits": [
+      {
+        "login": "0xNaN",
+        "type": "analyst"
+      }
+    ],
+    "credits_detailed": [
+      {
+        "user": {
+          "login": "0xNaN",
+          "id": 1616416,
+          "node_id": "MDQ6VXNlcjE2MTY0MTY=",
+          "avatar_url": "https://avatars.githubusercontent.com/u/1616416?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/0xNaN",
+          "html_url": "https://github.com/0xNaN",
+          "followers_url": "https://api.github.com/users/0xNaN/followers",
+          "following_url": "https://api.github.com/users/0xNaN/following{/other_user}",
+          "gists_url": "https://api.github.com/users/0xNaN/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/0xNaN/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/0xNaN/subscriptions",
+          "organizations_url": "https://api.github.com/users/0xNaN/orgs",
+          "repos_url": "https://api.github.com/users/0xNaN/repos",
+          "events_url": "https://api.github.com/users/0xNaN/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/0xNaN/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "type": "analyst",
+        "state": "accepted"
+      }
+    ],
+    "collaborating_users": null,
+    "collaborating_teams": null,
+    "private_fork": null,
+    "comments": 0,
+    "cvss": {
+      "vector_string": null,
+      "score": null
+    }
+  },
+  {
+    "ghsa_id": "GHSA-hfq3-v9pv-p627",
+    "cve_id": "CVE-2020-8923",
+    "url": "https://api.github.com/repos/dart-lang/sdk/security-advisories/GHSA-hfq3-v9pv-p627",
+    "html_url": "https://github.com/dart-lang/sdk/security/advisories/GHSA-hfq3-v9pv-p627",
+    "summary": "XSS vulnerability in dart:html",
+    "description": "### Impact\r\n\r\nThe validation logic that exists in dart:html for creating DOM nodes from text (String instances) was missing checks that allow for cross-site scripting (XSS) attacks using Dom clobbering.\r\n\r\nAffected APIs are those that take in a [NodeValidator](https://api.dart.dev/stable/dart-html/NodeValidator-class.html) and include the [Element.html](https://api.dart.dev/stable/dart-html/Element/Element.html.html) \r\nconstructor, as well as the Element functions [setInnerHtml](https://api.dart.dev/stable/dart-html/Element/setInnerHtml.html), [appendHtml](https://api.dart.dev/stable/dart-html/Element/appendHtml.html), and [insertAdjacentHtml](https://api.dart.dev/stable/dart-html/Element/insertAdjacentHtml.html). There are similar APIs on [DocumentFragment](https://api.dart.dev/stable/dart-html/DocumentFragment-class.html).\r\n\r\nNodeValidator is used to prevent Dom Clobbering Attacks. There are cases where carefully crafting user input can be used to corrupt previousNode or previousSibling on a DOM element to enable a XSS attack.\r\n\r\nAll Dart SDK releases including and before 2.7.1 and 2.8.0-dev.16.0 are affected.\r\n\r\n### Patches\r\n\r\nIf you're using a stable release of Dart, version 2.7.2 or later contain changes that address this vulnerability.\r\nIf you're using a dev release of Dart, version 2.8.0-dev.17.0 or later.\r\n\r\n### Workarounds\r\n\r\nIf you cannot update the Dart SDK you are using to rebuild your applications, we recommend you review uses of the affected APIs. Pay special attention to cases where user-provided data is used to populate DOM nodes.\r\n\r\nConsider using [Element.innerText](https://api.dart.dev/stable/dart-html/Element/innerText.html) or [Node.text](https://api.dart.dev/stable/dart-html/Node/text.html) to populate DOM elements.\r\n\r\n### References\r\n\r\nAn article on [DOM clobbering](https://portswigger.net/web-security/dom-based/dom-clobbering).\r\n\r\n### For more information\r\n\r\nSee [our community page](https://dart.dev/community) to find ways to contact the team.\r\n\r\n### Thanks\r\n\r\nMuch thanks to **Vincenzo di Cicco** for finding and reporting this issue!\r\n",
+    "severity": "medium",
+    "author": null,
+    "publisher": {
+      "login": "kevmoo",
+      "id": 17034,
+      "node_id": "MDQ6VXNlcjE3MDM0",
+      "avatar_url": "https://avatars.githubusercontent.com/u/17034?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/kevmoo",
+      "html_url": "https://github.com/kevmoo",
+      "followers_url": "https://api.github.com/users/kevmoo/followers",
+      "following_url": "https://api.github.com/users/kevmoo/following{/other_user}",
+      "gists_url": "https://api.github.com/users/kevmoo/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/kevmoo/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/kevmoo/subscriptions",
+      "organizations_url": "https://api.github.com/users/kevmoo/orgs",
+      "repos_url": "https://api.github.com/users/kevmoo/repos",
+      "events_url": "https://api.github.com/users/kevmoo/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/kevmoo/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "identifiers": [
+      {
+        "value": "GHSA-hfq3-v9pv-p627",
+        "type": "GHSA"
+      },
+      {
+        "value": "CVE-2020-8923",
+        "type": "CVE"
+      }
+    ],
+    "state": "published",
+    "created_at": null,
+    "updated_at": "2020-03-24T16:41:07Z",
+    "published_at": "2020-03-24T16:41:07Z",
+    "closed_at": null,
+    "withdrawn_at": null,
+    "submission": null,
+    "vulnerabilities": [
+      {
+        "package": {
+          "ecosystem": "",
+          "name": ""
+        },
+        "vulnerable_version_range": "<2.7.1",
+        "patched_versions": "2.7.2",
+        "vulnerable_functions": []
+      }
+    ],
+    "cvss_severities": {
+      "cvss_v3": {
+        "vector_string": null,
+        "score": null
+      },
+      "cvss_v4": {
+        "vector_string": null,
+        "score": null
+      }
+    },
+    "cwes": [],
+    "cwe_ids": [],
+    "credits": [
+      {
+        "login": "0xNaN",
+        "type": "analyst"
+      }
+    ],
+    "credits_detailed": [
+      {
+        "user": {
+          "login": "0xNaN",
+          "id": 1616416,
+          "node_id": "MDQ6VXNlcjE2MTY0MTY=",
+          "avatar_url": "https://avatars.githubusercontent.com/u/1616416?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/0xNaN",
+          "html_url": "https://github.com/0xNaN",
+          "followers_url": "https://api.github.com/users/0xNaN/followers",
+          "following_url": "https://api.github.com/users/0xNaN/following{/other_user}",
+          "gists_url": "https://api.github.com/users/0xNaN/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/0xNaN/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/0xNaN/subscriptions",
+          "organizations_url": "https://api.github.com/users/0xNaN/orgs",
+          "repos_url": "https://api.github.com/users/0xNaN/repos",
+          "events_url": "https://api.github.com/users/0xNaN/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/0xNaN/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "type": "analyst",
+        "state": "accepted"
+      }
+    ],
+    "collaborating_users": null,
+    "collaborating_teams": null,
+    "private_fork": null,
+    "comments": 0,
+    "cvss": {
+      "vector_string": null,
+      "score": null
+    }
   }
 ]

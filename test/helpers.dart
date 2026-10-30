@@ -30,6 +30,10 @@ class FakeApi {
 
   Set<String> forbiddenRepos = {};
 
+  /// Advisories appended to a repository's recorded list, for cases the
+  /// real data does not contain.
+  Map<String, List<Object?>> extraAdvisories = {};
+
   late final http.Client client = MockClient(handle);
 
   Future<http.Response> handle(http.Request request) async {
@@ -74,7 +78,10 @@ class FakeApi {
         'cfug/dio' => 'github_repo_advisories_cfug_dio.json',
         _ => null,
       };
-      return _json(file == null ? [] : fixtureJson('responses/$file'));
+      return _json([
+        if (file != null) ...fixtureJson('responses/$file') as List<Object?>,
+        ...?extraAdvisories[m.group(1)],
+      ]);
     }
     return http.Response('{"message":"Not Found"}', 404);
   }
@@ -173,3 +180,38 @@ Directory makeProject(Directory parent, String name, String lockFixture,
   }
   return dir;
 }
+
+/// A repository advisory in the shape GitHub returns, for the cases the
+/// recorded fixtures do not contain.
+Map<String, Object?> repositoryAdvisoryJson(
+  String ghsaId, {
+  required String repo,
+  required String summary,
+  String severity = 'medium',
+  List<Map<String, Object?>> vulnerabilities = const [],
+}) =>
+    {
+      'ghsa_id': ghsaId,
+      'cve_id': null,
+      'url': 'https://api.github.com/repos/$repo/security-advisories/$ghsaId',
+      'html_url': 'https://github.com/$repo/security/advisories/$ghsaId',
+      'summary': summary,
+      'description': '',
+      'severity': severity,
+      'identifiers': [
+        {'value': ghsaId, 'type': 'GHSA'}
+      ],
+      'state': 'published',
+      'published_at': '2026-10-23T00:00:00Z',
+      'withdrawn_at': null,
+      'vulnerabilities': vulnerabilities,
+    };
+
+Map<String, Object?> vulnerabilityJson(
+        {String? ecosystem, String? name, String? range, String? patched}) =>
+    {
+      'package': {'ecosystem': ecosystem, 'name': name},
+      'vulnerable_version_range': range,
+      'patched_versions': patched,
+      'vulnerable_functions': const <String>[],
+    };

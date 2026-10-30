@@ -98,6 +98,25 @@ void main() {
     });
   });
 
+  group('withdrawn advisories', () {
+    test('a withdrawn advisory in the global database is dropped', () async {
+      final api = FakeApi();
+      final advisories =
+          await GitHubGlobalSource(githubFor(api)).query([pkg('dio', '4.0.6')]);
+      expect(
+          advisories.map((a) => a.id), isNot(contains('GHSA-jwpw-q68h-r678')));
+      expect(advisories.map((a) => a.id), contains('GHSA-9324-jv53-9cc8'));
+    });
+
+    test('a withdrawn OSV record is dropped', () async {
+      final api = FakeApi();
+      final advisories = await OsvSource(fetcherFor(api.client),
+              base: Endpoints.defaults.osvApi)
+          .query([pkg('dio', '4.0.6')]);
+      expect(advisories.map((a) => a.id), ['GHSA-9324-jv53-9cc8']);
+    });
+  });
+
   group('GitHub errors', () {
     test('403 without rate-limit signs is access denied, not rate limiting',
         () async {
@@ -147,8 +166,7 @@ void main() {
       );
       final advisories = await source.query([pkg('dio', '4.0.6')]);
       expect(seen, isNotNull);
-      expect(advisories.map((a) => a.id),
-          containsAll(['GHSA-9324-jv53-9cc8', 'GHSA-jwpw-q68h-r678']));
+      expect(advisories.map((a) => a.id), contains('GHSA-9324-jv53-9cc8'));
     });
 
     test('does not switch on rate limiting', () async {
@@ -268,15 +286,19 @@ void main() {
     test(
         'matches lock packages by name and spreads package-less advisories '
         'over the repository\'s packages', () async {
-      final api = FakeApi();
+      final api = FakeApi()
+        ..extraAdvisories['cfug/dio'] = [
+          repositoryAdvisoryJson('GHSA-qqqq-rrrr-ssss',
+              repo: 'cfug/dio', summary: 'Advisory that names no package'),
+        ];
       final github = githubFor(api);
       final source = RepositoryPackageSource(
           PubDevClient(fetcherFor(api.client), base: Endpoints.defaults.pubDev),
           RepositoryAdvisoryFetcher(github));
       final result = await source
           .query([pkg('dio', '4.0.6'), pkg('unknown_pkg', '1.0.0')]);
+      // GHSA-cr65-55v9-xhvv names dio_http2_adapter, which is not locked.
       expect(result.advisories.map((a) => a.id), [
-        'GHSA-zzzz-yyyy-xxxx',
         'GHSA-9324-jv53-9cc8',
         'GHSA-qqqq-rrrr-ssss',
       ]);

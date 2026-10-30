@@ -99,6 +99,7 @@ class OsvSource implements AdvisorySource {
     if (json is! Map) return null;
     final id = json['id'];
     if (id is! String) return null;
+    if (json['withdrawn'] != null) return null;
     final dbSpecific = json['database_specific'];
     var summary = '${json['summary'] ?? ''}'.trim();
     if (summary.isEmpty) {

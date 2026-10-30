@@ -193,6 +193,79 @@ void main() {
       expect(m.single.current, Version.parse('3.50.0-0.2.pre'));
     });
 
+    test(
+        'the eMudhra advisory as dart-lang/sdk publishes it: 3.13.5 stable '
+        'is affected and fixed in 3.13.7, 3.13.7 is not', () {
+      final advisories = [
+        advisory('GHSA-frr6-h895-5pxp', repository: 'dart-lang/sdk', affected: [
+          const AffectedPackage(
+              name: 'Dart SDK',
+              ecosystem: 'other',
+              ranges: ['< 3.13.7 (stable), < 3.14.0-315.3.beta (beta)'],
+              patched: '3.13.7, 3.14.0-315.3.beta'),
+          const AffectedPackage(
+              name: 'Flutter SDK',
+              ecosystem: 'other',
+              ranges: ['< 3.47.8 (stable), < 3.50.0-0.2.pre (beta)'],
+              patched: '3.47.8, 3.50.0-0.2.pre'),
+        ]),
+      ];
+      final affected = matchSdk(
+          SdkInfo(
+              flutter: Version.parse('3.47.6'),
+              dart: Version.parse('3.13.5'),
+              channel: 'stable',
+              origin: SdkOrigin.flutterCommand),
+          advisories);
+      expect(affected.single.subject, 'Flutter');
+      expect(affected.single.kind, FindingKind.sdk);
+      expect(affected.single.fixed, Version.parse('3.47.8'));
+      expect(affected.single.alsoFixedIn, {'Dart': Version.parse('3.13.7')});
+
+      final fixed = matchSdk(
+          SdkInfo(
+              flutter: Version.parse('3.47.8'),
+              dart: Version.parse('3.13.7'),
+              channel: 'stable',
+              origin: SdkOrigin.flutterCommand),
+          advisories);
+      expect(fixed, isEmpty);
+    });
+
+    test('a beta build is pointed at the beta fix', () {
+      final m = matchSdk(
+        SdkInfo(
+            flutter: Version.parse('3.50.0-0.1.pre'),
+            channel: 'beta',
+            origin: SdkOrigin.flutterCommand),
+        [
+          advisory('GHSA-1', repository: 'dart-lang/sdk', affected: [
+            const AffectedPackage(
+                name: 'Flutter SDK',
+                ranges: ['< 3.47.8 (stable), < 3.50.0-0.2.pre (beta)'],
+                patched: '3.47.8, 3.50.0-0.2.pre'),
+          ]),
+        ],
+      );
+      expect(m.single.fixed, Version.parse('3.50.0-0.2.pre'));
+    });
+
+    test('"Core SDK" and an ecosystem of "dart sdk" both name the Dart SDK',
+        () {
+      expect(sdkSubject(const AffectedPackage(name: 'Core SDK'), null), 'Dart');
+      expect(
+          sdkSubject(
+              const AffectedPackage(name: 'Core SDK', ecosystem: 'flutter sdk'),
+              null),
+          'Flutter');
+      expect(
+          sdkSubject(const AffectedPackage(ecosystem: 'dart'), null), 'Dart');
+      expect(
+          sdkSubject(
+              const AffectedPackage(name: 'dart_style'), 'dart-lang/sdk'),
+          isNull);
+    });
+
     test('an SDK advisory with no structured range is sdkUnverified', () {
       final m =
           matchSdk(sdk, [advisory('GHSA-1', repository: 'dart-lang/sdk')]);

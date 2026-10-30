@@ -88,18 +88,11 @@ void main() {
     final findings =
         ((json['projects'] as List).first as Map)['findings'] as List<Object?>;
     final kinds = [for (final f in findings) (f as Map)['kind']];
-    expect(kinds, [
-      'sdk',
-      'sdkUnverified',
-      'package',
-      'package',
-      'package',
-      'packageUnverified',
-    ]);
+    expect(kinds, ['sdk', 'package', 'package']);
   });
 
   test('an SDK finding shared by two projects counts once', () async {
     final json = jsonDecode(await render(['--json'])) as Map<String, Object?>;
-    expect(json['summary'], {'findings': 4, 'ignored': 0, 'unverified': 2});
+    expect(json['summary'], {'findings': 3, 'ignored': 0, 'unverified': 0});
   });
 }

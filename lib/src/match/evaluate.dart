@@ -12,26 +12,32 @@ class Evaluation {
   const Evaluation(this.verdict, [this.fixed]);
 }
 
-Evaluation evaluate(Version version, List<AffectedPackage> entries) {
+Evaluation evaluate(
+  Version version,
+  List<AffectedPackage> entries, {
+  String? channel,
+  String? product,
+}) {
   var vulnerable = false;
   var unreadable = false;
-  final fixes = <Version?>[];
+  final fixes = <List<Version>>[];
 
   for (final e in entries) {
     if (e.ranges.isEmpty) {
       unreadable = true;
-      fixes.add(parsePatchedVersion(e.patched));
+      fixes.add(parsePatchedVersions(e.patched));
       continue;
     }
-    final constraints = e.ranges.map(parseVulnerableRange).toList();
-    if (constraints.contains(null)) {
+    final ranges = e.ranges.map(parseVulnerableRange).toList();
+    if (ranges.contains(null)) {
       unreadable = true;
-      fixes.add(parsePatchedVersion(e.patched));
+      fixes.add(parsePatchedVersions(e.patched));
       continue;
     }
-    if (constraints.any((c) => c!.allows(version))) {
+    if (ranges
+        .any((r) => r!.allows(version, channel: channel, product: product))) {
       vulnerable = true;
-      fixes.add(parsePatchedVersion(e.patched));
+      fixes.add(parsePatchedVersions(e.patched));
     }
   }
 
@@ -46,10 +52,16 @@ Evaluation evaluate(Version version, List<AffectedPackage> entries) {
 
 // No fix when any matching range has none: another range's fix would
 // suggest an upgrade that does not help.
-Version? _pickFix(Version current, List<Version?> fixes) {
-  if (fixes.isEmpty || fixes.contains(null)) return null;
-  final above = fixes.whereType<Version>().where((v) => v > current).toList()
-    ..sort();
+// The smallest fix above the current version, not the first listed: SDK
+// advisories list one fix per channel ("3.13.7, 3.14.0-315.3.beta"), and a
+// beta build must be pointed at the beta fix.
+Version? _pickFix(Version current, List<List<Version>> fixes) {
+  if (fixes.isEmpty || fixes.any((f) => f.isEmpty)) return null;
+  final above = [
+    for (final f in fixes)
+      for (final v in f)
+        if (v > current) v
+  ]..sort();
   return above.isEmpty ? null : above.first;
 }
 

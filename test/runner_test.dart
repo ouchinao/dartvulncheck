@@ -143,12 +143,25 @@ void main() {
   test('--strict counts unverified advisories', () async {
     makeProject(tmp, 'app', 'pure_dart.lock');
     // Dart 3.13.7 from `dart --version`, not Flutter's 3.13.5: at 3.13.5 the
-    // fixed SDK advisory would also match and exit 3 whatever --strict says.
+    // eMudhra advisory would also match and exit 3 whatever --strict says.
     final processes = FakeProcessRunner({
       'dart': ProcessOutput(0, '', fixture('sdk/dart_version.txt')),
     });
-    final loose = await run(['app'], processes: processes);
-    final strict = await run(['app', '--strict'], processes: processes);
+    FakeApi api() => FakeApi()
+      ..extraAdvisories['dart-lang/sdk'] = [
+        repositoryAdvisoryJson('GHSA-dddd-eeee-ffff',
+            repo: 'dart-lang/sdk',
+            summary: 'Dart SDK issue without a readable range',
+            vulnerabilities: [
+              vulnerabilityJson(
+                  ecosystem: 'dart sdk',
+                  name: 'Dart SDK',
+                  range: 'see the description'),
+            ]),
+      ];
+    final loose = await run(['app'], api: api(), processes: processes);
+    final strict =
+        await run(['app', '--strict'], api: api(), processes: processes);
     expect(loose.out, contains('UNVERIFIED'));
     expect(loose.code, ExitCodes.ok);
     expect(strict.code, ExitCodes.vulnerable);
@@ -171,7 +184,6 @@ void main() {
     final r = await run(['app', '--no-sdk'], env: const {});
     expect(r.err, contains('GITHUB_TOKEN is not set'));
     expect(r.api.requests.where((q) => q.url.host == 'pub.dev'), isEmpty);
-    expect(r.out, isNot(contains('GHSA-zzzz-yyyy-xxxx')));
   });
 
   test('without flutter on PATH the SDK check is skipped with a warning',

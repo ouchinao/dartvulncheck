@@ -36,6 +36,7 @@ class RepositoryAdvisoryFetcher {
     if (id is! String) return null;
     final state = json['state'];
     if (state is String && state != 'published') return null;
+    if (json['withdrawn_at'] != null) return null;
     return Advisory(
       id: id,
       aliases: githubAliases(json, id),

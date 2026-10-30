@@ -20,19 +20,20 @@ jobs:
       - name: Fetch the responses
         run: |
           set -euo pipefail
-          mkdir -p recorded
+          mkdir -p fixtures
           record() {
-            gh api "$2" > "recorded/$1.json"
-            echo "FIXTURE-COUNT $1 $(jq 'length' "recorded/$1.json")"
+            gh api "$2" > "fixtures/$1.json"
+            echo "FIXTURE-COUNT $1 $(jq 'length' "fixtures/$1.json")"
             # One advisory per log line, so the log is a usable copy of the
             # artifact for anyone who cannot download it.
-            jq -c '.[]' "recorded/$1.json" | awk -v n="$1" '{ print "FIXTURE " n " " $0 }'
+            jq -c '.[]' "fixtures/$1.json" | awk -v n="$1" '{ print "FIXTURE " n " " $0 }'
           }
-          record dart_sdk "/repos/dart-lang/sdk/security-advisories?state=published&per_page=100"
-          record flutter "/repos/flutter/flutter/security-advisories?state=published&per_page=100"
-          record cfug_dio "/repos/cfug/dio/security-advisories?state=published&per_page=100"
-          record global "/advisories?ecosystem=pub&affects=dio@4.0.6,http@0.13.2&per_page=100"
+          # The names are the files under test/fixtures/responses/.
+          record github_repo_advisories_dart_sdk "/repos/dart-lang/sdk/security-advisories?state=published&per_page=100"
+          record github_repo_advisories_flutter "/repos/flutter/flutter/security-advisories?state=published&per_page=100"
+          record github_repo_advisories_cfug_dio "/repos/cfug/dio/security-advisories?state=published&per_page=100"
+          record github_global_advisories "/advisories?ecosystem=pub&affects=dio@4.0.6,http@0.13.2&per_page=100"
       - uses: actions/upload-artifact@v4
         with:
           name: recorded-api-responses
-          path: recorded/
+          path: fixtures/

@@ -26,7 +26,8 @@ List<Finding> matchSdk(
       if (subject == 'Flutter' && !includeFlutter) continue;
       final current = subject == 'Flutter' ? sdk.flutter : sdk.dart;
       if (current == null) continue;
-      final result = evaluate(current, entries);
+      final result =
+          evaluate(current, entries, channel: sdk.channel, product: subject);
       final FindingKind kind;
       switch (result.verdict) {
         case Verdict.vulnerable:
@@ -64,27 +65,31 @@ bool hasDartAdvisories(List<Advisory> advisories) => advisories
 List<AffectedPackage> _entries(Advisory a) =>
     a.affected.isEmpty ? const [AffectedPackage()] : a.affected;
 
+// The ecosystem field is read as well as the name: dart-lang/sdk writes its
+// advisories by hand, with names such as "Core SDK" and ecosystems such as
+// "dart sdk", "core sdk", "dart" or nothing at all.
 String? sdkSubject(AffectedPackage e, String? repository) {
-  if (!e.hasName) {
+  final name = (e.name ?? '').trim().toLowerCase();
+  final ecosystem = (e.ecosystem ?? '').trim().toLowerCase();
+  if (_flutterWords.contains(name)) return 'Flutter';
+  if (_dartWords.contains(name)) return 'Dart';
+  final generic = name.isEmpty || _genericWords.contains(name);
+  if (generic && _flutterWords.contains(ecosystem)) return 'Flutter';
+  if (generic && _dartWords.contains(ecosystem)) return 'Dart';
+  if (_genericWords.contains(name)) return 'Dart';
+  if (name.isEmpty) {
     return switch (repository) {
       'flutter/flutter' => 'Flutter',
       'dart-lang/sdk' => 'Dart',
       _ => null,
     };
   }
-  final name = e.name!.trim().toLowerCase();
-  if (name == 'flutter' || name == 'flutter sdk' || name == 'flutter_sdk') {
-    return 'Flutter';
-  }
-  if (name == 'dart' ||
-      name == 'sdk' ||
-      name == 'dart sdk' ||
-      name == 'dart-sdk' ||
-      name == 'dart_sdk') {
-    return 'Dart';
-  }
   return null;
 }
+
+const _flutterWords = {'flutter', 'flutter sdk', 'flutter_sdk', 'flutter-sdk'};
+const _dartWords = {'dart', 'dart sdk', 'dart_sdk', 'dart-sdk'};
+const _genericWords = {'sdk', 'core sdk', 'core_sdk', 'core-sdk'};
 
 // Merged by id or alias rather than reported per repository: the same
 // issue is often published in both dart-lang/sdk and flutter/flutter.

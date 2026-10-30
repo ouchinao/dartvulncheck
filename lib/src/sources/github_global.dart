@@ -7,6 +7,9 @@ import 'github_client.dart';
 
 // affects= instead of listing every pub advisory and matching here: one
 // request per 1000 packages instead of paging the whole database.
+//
+// Withdrawn advisories are dropped, not reported: GitHub keeps a withdrawn
+// duplicate in the results, and reporting it would double a finding.
 class GitHubGlobalSource implements AdvisorySource {
   final GitHubClient github;
   final int chunkSize;
@@ -44,6 +47,7 @@ class GitHubGlobalSource implements AdvisorySource {
     if (json is! Map) return null;
     final id = json['ghsa_id'];
     if (id is! String) return null;
+    if (json['withdrawn_at'] != null) return null;
     return Advisory(
       id: id,
       aliases: githubAliases(json, id),

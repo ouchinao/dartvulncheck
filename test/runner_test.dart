@@ -188,7 +188,11 @@ void main() {
     makeProject(tmp, 'app', 'app.lock');
     final r = await run(['app', '--no-sdk'], env: const {});
     expect(r.err, contains('GITHUB_TOKEN is not set'));
-    expect(r.api.requests.where((q) => q.url.host == 'pub.dev'), isEmpty);
+    expect(
+        r.api.requests.where((q) =>
+            q.url.host == 'pub.dev' &&
+            q.url.path != '/api/packages/dartvulncheck'),
+        isEmpty);
   });
 
   test('without flutter on PATH the SDK check is skipped with a warning',
@@ -297,6 +301,43 @@ void main() {
     expect(refused.code, ExitCodes.error);
     expect(refused.err, contains('DARTVULNCHECK_GITHUB_API_URL'));
     expect(refused.api.requests, isEmpty);
+  });
+
+  group('release notice', () {
+    test('a newer release on pub.dev is named on stderr, not stdout', () async {
+      makeProject(tmp, 'app', 'pure_dart.lock');
+      final r = await run(['app', '--no-sdk'],
+          api: FakeApi()..releasedVersion = '99.0.0');
+      expect(r.err, contains('dartvulncheck 99.0.0 is available'));
+      expect(r.out, isNot(contains('99.0.0')));
+      expect(r.code, ExitCodes.ok);
+    });
+
+    test('the running release, or an older one, raises no notice', () async {
+      makeProject(tmp, 'app', 'pure_dart.lock');
+      for (final v in [packageVersion, '0.0.1']) {
+        final r =
+            await run(['app', '--no-sdk'], api: FakeApi()..releasedVersion = v);
+        expect(r.err, isNot(contains('is available')), reason: v);
+      }
+    });
+
+    test('a failed lookup changes neither the exit code nor the output',
+        () async {
+      makeProject(tmp, 'app', 'pure_dart.lock');
+      final r =
+          await run(['app', '--no-sdk'], api: FakeApi()..pubDevStatus = 500);
+      expect(r.code, ExitCodes.ok);
+      expect(r.err, isNot(contains('pub.dev')));
+    });
+
+    test('--verbose names why the lookup was skipped', () async {
+      makeProject(tmp, 'app', 'pure_dart.lock');
+      final r = await run(['app', '--no-sdk', '--verbose'],
+          api: FakeApi()..pubDevStatus = 500);
+      expect(r.err, contains('release check skipped: '));
+      expect(r.code, ExitCodes.ok);
+    });
   });
 
   test('--help wins over every other option', () async {

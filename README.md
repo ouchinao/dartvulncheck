@@ -14,10 +14,12 @@ What it adds over the warning from `flutter pub get`:
 ## Install
 
 ```sh
-dart pub global activate dartvulncheck 0.2.3
+dart pub global activate dartvulncheck 0.3.0
 ```
 
-Or from git, at a release tag: `dart pub global activate --source git https://github.com/ouchinao/dartvulncheck --git-ref v0.2.3`. Either way, name a version rather than the head of `main`, so that the tool does not change under you between runs.
+Or from git, at a release tag: `dart pub global activate --source git https://github.com/ouchinao/dartvulncheck --git-ref v0.3.0`. Either way, name a version rather than the head of `main`, so that the tool does not change under you between runs.
+
+Each run also asks pub.dev for the latest release of dartvulncheck and prints a warning when a newer one exists. Upgrading is the same command with the new version. The lookup never changes the exit code; if pub.dev cannot be reached, it is skipped, and `--verbose` says why.
 
 ## Usage
 
@@ -71,7 +73,7 @@ vulncheck:
     - uses: subosito/flutter-action@v2
       with:
         channel: stable
-    - run: dart pub global activate dartvulncheck 0.2.3
+    - run: dart pub global activate dartvulncheck 0.3.0
     - run: dart pub global run dartvulncheck app packages/core
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

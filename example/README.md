@@ -10,7 +10,7 @@ vulncheck:
     - uses: subosito/flutter-action@v2
       with:
         channel: stable
-    - run: dart pub global activate dartvulncheck 0.2.3
+    - run: dart pub global activate dartvulncheck 0.3.0
     - run: dart pub global run dartvulncheck
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -21,7 +21,7 @@ vulncheck:
 ## On a developer machine
 
 ```sh
-dart pub global activate dartvulncheck 0.2.3
+dart pub global activate dartvulncheck 0.3.0
 cd my_app
 dartvulncheck                                # text report; exit 3 on findings
 dartvulncheck --json > vulncheck.json        # machine-readable

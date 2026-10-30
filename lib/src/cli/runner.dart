@@ -1,9 +1,11 @@
 import 'package:http/http.dart' as http;
+import 'package:pub_semver/pub_semver.dart';
 
 import '../check/checker.dart';
 import '../check/result.dart';
 import '../model/errors.dart';
 import '../model/notices.dart';
+import '../model/release.dart';
 import '../report/json_report.dart';
 import '../report/notice_text.dart';
 import '../report/text_report.dart';
@@ -17,6 +19,7 @@ import '../sources/github_repository.dart';
 import '../sources/http_fetcher.dart';
 import '../sources/osv.dart';
 import '../sources/pub_dev.dart';
+import '../sources/release_check.dart';
 import '../version.dart';
 import 'exit_codes.dart';
 import 'options.dart';
@@ -73,6 +76,9 @@ class Runner {
     endpoints.overrides
         .forEach((variable, url) => _warn(EndpointOverridden(variable, url)));
 
+    // Asked alongside the check, not before it: a slow pub.dev then costs
+    // nothing unless it is slower than the check itself.
+    final release = _releaseCheck(endpoints).status();
     final result = await _buildChecker(command, endpoints).check(command.check);
     out.write(switch (command.format) {
       OutputFormat.text => renderText(result),
@@ -80,8 +86,29 @@ class Runner {
     });
     if (command.verbose) err.write(renderVerbose(result));
     _reportErrors(result);
+    switch (await release) {
+      case NewerRelease(:final latest):
+        _warn(NewerReleaseAvailable(current: _current, latest: latest));
+      // --verbose only, not a warning: a network that blocks pub.dev would
+      // otherwise add the same line to every run.
+      case final ReleaseUnknown unknown when command.verbose:
+        err.writeln(describeReleaseUnknown(unknown));
+      case UpToDate() || ReleaseUnknown():
+        break;
+    }
     return exitCodeFor(result, failOn: command.failOn, strict: command.strict);
   }
+
+  static final _current = Version.parse(packageVersion);
+
+  // A fetcher of its own, not the check's: the short timeout keeps a network
+  // that blocks pub.dev from holding up the end of every run.
+  ReleaseCheck _releaseCheck(Endpoints endpoints) => ReleaseCheck(
+      PubDevClient(
+          HttpFetcher(client,
+              timeout: const Duration(seconds: 5), retryDelay: retryDelay),
+          base: endpoints.pubDev),
+      current: _current);
 
   Checker _buildChecker(RunCheck command, Endpoints endpoints) {
     final fetcher = HttpFetcher(client, retryDelay: retryDelay);

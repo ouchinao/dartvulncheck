@@ -64,6 +64,12 @@ class EndpointOverridden extends Warning {
   const EndpointOverridden(this.variable, this.url);
 }
 
+class NewerReleaseAvailable extends Warning {
+  final Version current;
+  final Version latest;
+  const NewerReleaseAvailable({required this.current, required this.latest});
+}
+
 sealed class LookupNote {
   final String subject;
   const LookupNote(this.subject);

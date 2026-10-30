@@ -4,6 +4,13 @@ description: >-
   vulnerabilities, and fails CI when it finds one.
 version: 0.2.0
 repository: https://github.com/ouchinao/dartvulncheck
+issue_tracker: https://github.com/ouchinao/dartvulncheck/issues
+topics:
+  - security
+  - vulnerability
+  - ci
+  - cli
+  - dependencies
 
 environment:
   sdk: ^3.5.0

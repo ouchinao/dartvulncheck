@@ -33,7 +33,7 @@ It reads `pubspec.lock`, so run `dart pub get` (or `flutter pub get`) first.
 | `--ignore <id>` | Advisory ID to ignore (GHSA or CVE). Repeatable. Added to `ignored_advisories` in `pubspec.yaml` | None |
 | `--strict` | Also count advisories whose affected range cannot be read ("unverified") | Not counted |
 | `--no-repo-advisories` | Skip repository advisories (the early-warning stage) | Skipped automatically without `GITHUB_TOKEN` |
-| `--sdk-version <ver>` | Pass the Flutter version by hand | `.fvmrc` → `flutter --version` → `dart --version` |
+| `--sdk-version <ver>` | Pass the Flutter version by hand | `.fvmrc` (or `.fvm/fvm_config.json`) → `flutter --version` → `dart --version` |
 | `--no-sdk` | Do not check the SDK | Checked |
 | `--no-transitive` | Do not check transitive dependencies | Checked |
 | `--verbose` | Show how many packages were queried and ignored, and which could not be looked up | Off |
@@ -57,7 +57,7 @@ ignored_advisories:
   - GHSA-xxxx-xxxx-xxxx  # iOS only; this app ships on Android
 ```
 
-Ignored findings are still listed (with `"ignored": true` in JSON) and counted in the summary, so a growing ignore list stays visible.
+Ignored findings are counted in the summary line, kept in the JSON output with `"ignored": true`, and listed by `--verbose`, so a growing ignore list stays visible. The text report does not list them individually.
 
 ## GitHub Actions
 
@@ -87,7 +87,7 @@ vulncheck:
 | --- | --- | --- |
 | Primary | GitHub Advisory Database (`GET /advisories?ecosystem=pub&affects=…`) | Hosted packages |
 | Early warning | Repository security advisories (`GET /repos/{owner}/{repo}/security-advisories`) | Packages with a GitHub repository, plus `dart-lang/sdk` and `flutter/flutter` |
-| Fallback | OSV.dev (`POST /v1/querybatch`) | Used only when GitHub is unreachable |
+| Fallback | OSV.dev (`POST /v1/querybatch`) | Used only when GitHub is unreachable or answers something that is not an advisory list. Not on rate limiting or a rejected token: those need a fix on your side |
 
 Base URLs can be overridden with `DARTVULNCHECK_GITHUB_API_URL`, `DARTVULNCHECK_OSV_API_URL` and `DARTVULNCHECK_PUB_URL` (for tests and GitHub Enterprise).
 
@@ -96,6 +96,8 @@ Base URLs can be overridden with `DARTVULNCHECK_GITHUB_API_URL`, `DARTVULNCHECK_
 - It does not check whether vulnerable code is actually called. pub advisories do not say which functions are affected, so there is nothing to match a call graph against.
 - Advisories that only affect some platforms are reported for all platforms. Use `ignored_advisories` with a comment for the ones that do not apply.
 - `git` and `path` dependencies cannot be looked up. They are listed with `--verbose`.
+- Repository advisories describe affected versions in free text written by the maintainers. The forms seen so far are read (`< 3.13.7 (stable), < 3.14.0-315.3.beta (beta)`, `Prior to 3.11.0`, `Dart version prior to 2.18.2, Flutter version prior to 3.3.3`, `>=1.0.0 <= 2.7.1`); anything else is reported as "unverified" and not counted unless `--strict`.
+- Withdrawn advisories are dropped, and advisories of `dart-lang/sdk` that name no package are matched against the SDK only, not against the packages published from that repository (`meta`, `analyzer`, …).
 
 ## Development
 
@@ -105,6 +107,8 @@ dart analyze
 dart test
 UPDATE_GOLDENS=1 dart test test/report_test.dart  # after an intended output change
 ```
+
+The GitHub API responses under `test/fixtures/responses/` are recorded, not written by hand. To refresh them, run the `Record API fixtures` workflow in Actions and copy the files from its artifact over the existing ones.
 
 Code under `lib/src/` is split by layer: `lockfile/` (input) → `sources/` (lookup) → `match/` (matching) → `report/` (output). `check/` runs them in order, `cli/` handles arguments and exit codes, and `model/` holds the shared types. Only `sources/` talks to the network, so every test runs offline.
 

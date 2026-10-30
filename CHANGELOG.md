@@ -1,3 +1,8 @@
+## 0.2.2
+
+- Published to pub.dev by the `Publish to pub.dev` workflow from the
+  `v<version>` tag. No change to the tool.
+
 ## 0.2.1
 
 - First version on pub.dev: `dart pub global activate dartvulncheck`.

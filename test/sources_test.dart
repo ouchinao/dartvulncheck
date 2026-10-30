@@ -98,6 +98,23 @@ void main() {
     });
   });
 
+  group('where the token may go', () {
+    test('a page link to another origin is not followed', () async {
+      final seen = <Uri>[];
+      final client = MockClient((req) async {
+        seen.add(req.url);
+        return http.Response('[]', 200, headers: {
+          'link': '<https://evil.example/advisories?page=2>; rel="next"',
+        });
+      });
+      final source = GitHubGlobalSource(GitHubClient(fetcherFor(client),
+          apiBase: Endpoints.defaults.githubApi, token: 'tkn'));
+      await expectLater(source.query([pkg('dio', '1.0.0')]),
+          throwsA(isA<UnexpectedResponse>()));
+      expect(seen.map((u) => u.host), ['api.github.com']);
+    });
+  });
+
   group('withdrawn advisories', () {
     test('a withdrawn advisory in the global database is dropped', () async {
       final api = FakeApi();

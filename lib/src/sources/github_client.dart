@@ -50,9 +50,20 @@ class GitHubClient {
       }
       items.addAll(body);
       url = nextPage(response.headers['link']);
+      // The token goes only where apiBase points. A `next` link to another
+      // origin is not followed, however it got into the header.
+      if (url != null && !_sameOrigin(url)) {
+        throw UnexpectedResponse(
+            sourceName, 'a page link points away from ${apiBase.host}');
+      }
     }
     return items;
   }
+
+  bool _sameOrigin(Uri url) =>
+      url.scheme == apiBase.scheme &&
+      url.host == apiBase.host &&
+      url.port == apiBase.port;
 
   void _throwIfRateLimited(http.Response response) {
     final status = response.statusCode;

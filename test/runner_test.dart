@@ -230,7 +230,10 @@ void main() {
     final r = await run(['app'], api: api);
     expect(r.code, ExitCodes.error);
     expect(r.out, contains('GHSA-9324-jv53-9cc8'));
-    expect(r.out, contains('SDK (Flutter 3.47.6 stable / Dart 3.13.5)'));
+    expect(
+        r.out,
+        contains('Flutter 3.47.6 stable / Dart 3.13.5 (flutter --version)\n'
+            '  Could not check:'));
     expect(r.err, contains('dartvulncheck: SDK:'));
   });
 
@@ -242,6 +245,16 @@ void main() {
     final r = await run(['app', 'app2', '--no-sdk'], api: api);
     expect(
         'repository advisory lookups failed'.allMatches(r.err), hasLength(1));
+  });
+
+  test('a 401 from GitHub blames the token and does not fall back to OSV',
+      () async {
+    makeProject(tmp, 'app', 'app.lock');
+    final api = FakeApi()..githubStatus = 401;
+    final r = await run(['app'], api: api);
+    expect(r.code, ExitCodes.error);
+    expect(r.err, contains('rejected the token'));
+    expect(r.api.requests.where((q) => q.url.host == 'api.osv.dev'), isEmpty);
   });
 
   test('--help wins over every other option', () async {

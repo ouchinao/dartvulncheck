@@ -23,6 +23,7 @@ export 'src/model/package_ref.dart';
 export 'src/model/sdk_info.dart';
 export 'src/model/severity.dart';
 export 'src/report/json_report.dart';
+export 'src/report/labels.dart';
 export 'src/report/notice_text.dart';
 export 'src/report/summary.dart';
 export 'src/report/text_report.dart';

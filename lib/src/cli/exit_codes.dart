@@ -1,4 +1,5 @@
 import '../check/result.dart';
+import '../model/finding.dart';
 import '../model/severity.dart';
 
 // 3, not 2: it matches govulncheck, so mixed Go/Dart CI needs no mapping.
@@ -9,12 +10,18 @@ abstract final class ExitCodes {
   static const vulnerable = 3;
 }
 
-// Decided in cli/, not in report/: it is a policy of this command, and the
-// report only describes what was found.
+// Decided in cli/, not in report/ or on Finding: it is a policy of this
+// command, and neither the report nor the model should know --fail-on.
 int exitCodeFor(CheckResult result,
     {required Severity failOn, required bool strict}) {
   if (result.hasErrors) return ExitCodes.error;
-  final failing =
-      result.findings.any((f) => f.counts(failOn: failOn, strict: strict));
+  final failing = result.findings
+      .any((f) => findingFails(f, failOn: failOn, strict: strict));
   return failing ? ExitCodes.vulnerable : ExitCodes.ok;
+}
+
+bool findingFails(Finding f, {required Severity failOn, required bool strict}) {
+  if (f.ignored) return false;
+  if (f.kind.isUnverified && !strict) return false;
+  return f.severity.isAtLeast(failOn);
 }

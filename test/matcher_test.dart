@@ -149,7 +149,7 @@ void main() {
     final sdk = SdkInfo(
         flutter: Version.parse('3.47.6'),
         dart: Version.parse('3.13.5'),
-        origin: 'test');
+        origin: SdkOrigin.override);
 
     test(
         'Dart and Flutter entries of one advisory become one Flutter finding '
@@ -183,8 +183,8 @@ void main() {
     });
 
     test('a beta channel build is matched', () {
-      final beta =
-          SdkInfo(flutter: Version.parse('3.50.0-0.2.pre'), origin: 'test');
+      final beta = SdkInfo(
+          flutter: Version.parse('3.50.0-0.2.pre'), origin: SdkOrigin.override);
       final m = matchSdk(beta, [
         advisory('GHSA-1',
             repository: 'flutter/flutter',
@@ -217,7 +217,7 @@ void main() {
         'with only the Flutter version known, Dart-only advisories are '
         'skipped, and the advisories show the Dart version was needed', () {
       final flutterOnly =
-          SdkInfo(flutter: Version.parse('3.47.6'), origin: 'test');
+          SdkInfo(flutter: Version.parse('3.47.6'), origin: SdkOrigin.override);
       final advisories = [
         advisory('GHSA-1',
             repository: 'dart-lang/sdk',
@@ -234,50 +234,6 @@ void main() {
             affected: [affects('flutter_tools', '< 9.0.0')]),
       ]);
       expect(m, isEmpty);
-    });
-  });
-
-  group('--fail-on', () {
-    Finding finding(Severity s, {FindingKind kind = FindingKind.package}) =>
-        Finding(
-          id: 'GHSA-1',
-          kind: kind,
-          subject: 'dio',
-          current: Version.parse('1.0.0'),
-          severity: s,
-          summary: '',
-          url: Uri.parse('https://example.com'),
-        );
-
-    test('a finding at the threshold counts, one below does not', () {
-      expect(
-          finding(Severity.high).counts(failOn: Severity.high, strict: false),
-          isTrue);
-      expect(
-          finding(Severity.moderate)
-              .counts(failOn: Severity.high, strict: false),
-          isFalse);
-    });
-
-    test('unknown severity counts as the highest', () {
-      expect(
-          finding(Severity.unknown)
-              .counts(failOn: Severity.critical, strict: false),
-          isTrue);
-    });
-
-    test('unverified counts only with --strict', () {
-      final f = finding(Severity.high, kind: FindingKind.packageUnverified);
-      expect(f.counts(failOn: Severity.low, strict: false), isFalse);
-      expect(f.counts(failOn: Severity.low, strict: true), isTrue);
-    });
-
-    test('ignored never counts', () {
-      expect(
-          finding(Severity.critical)
-              .copyWith(ignored: true)
-              .counts(failOn: Severity.low, strict: true),
-          isFalse);
     });
   });
 }

@@ -56,16 +56,19 @@ class RateLimited extends VulncheckException {
           'Set GITHUB_TOKEN to raise it to 1,000/hour';
 }
 
-// Not folded into RateLimited: a 403 without rate-limit signs means the
-// token lacks access, and telling the user to wait would not help.
+// Not folded into RateLimited: a 401 or a 403 without rate-limit signs
+// means the token is bad or lacks access, and telling the user to wait
+// would not help.
 class AccessDenied extends VulncheckException {
   final String source;
   final int statusCode;
   const AccessDenied(this.source, this.statusCode);
 
   @override
-  String get message => '$source refused access (HTTP $statusCode). '
-      'Check GITHUB_TOKEN and what it is allowed to read';
+  String get message => statusCode == 401
+      ? '$source rejected the token (HTTP 401). Check GITHUB_TOKEN'
+      : '$source refused access (HTTP $statusCode). '
+          'Check GITHUB_TOKEN and what it is allowed to read';
 }
 
 // Not SourceUnreachable: the server answered, so retrying the same request

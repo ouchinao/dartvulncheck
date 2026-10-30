@@ -53,7 +53,10 @@ sealed class Command {
     ..addFlag('json', negatable: false, help: 'Print JSON.')
     ..addOption('fail-on',
         valueHelp: 'level',
-        allowed: Severity.failOnValues,
+        allowed: [
+          for (final s in Severity.values)
+            if (s != Severity.unknown) s.name,
+        ],
         defaultsTo: 'low',
         help: 'Exit 3 if anything at this severity or above is found.')
     ..addMultiOption('ignore',

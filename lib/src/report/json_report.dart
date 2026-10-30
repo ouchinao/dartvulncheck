@@ -1,9 +1,10 @@
 import 'dart:convert';
 
-import '../model/finding.dart';
-import '../version.dart';
 import '../check/result.dart';
+import '../model/finding.dart';
 import '../model/package_ref.dart';
+import '../version.dart';
+import 'labels.dart';
 import 'summary.dart';
 
 // Readers check this, so bump it on any incompatible change instead of
@@ -37,7 +38,7 @@ Map<String, Object?>? _sdk(SdkStatus status) {
     'flutter': info.flutter?.toString(),
     'dart': info.dart?.toString(),
     'channel': info.channel,
-    'origin': info.origin,
+    'origin': sdkOriginLabel(info.origin),
     if (error != null) 'error': error.message,
   };
 }
@@ -54,8 +55,17 @@ Map<String, Object?> _project(ProjectResult p) => switch (p) {
           'packages': {
             'total': packages.total,
             'queried': packages.queried,
+            // Objects, not "name (reason)" strings: a reader should not have
+            // to parse a label.
             'skipped': [
-              for (final s in packages.skipped) '${s.name} (${s.reason})',
+              for (final s in packages.skipped)
+                {
+                  'name': s.name,
+                  'reason': switch (s) {
+                    NotHosted(:final source) => source.name,
+                    InvalidVersion() => 'invalid version',
+                  },
+                },
             ],
           },
           'findings': [

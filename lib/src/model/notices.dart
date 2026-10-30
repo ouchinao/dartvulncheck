@@ -19,6 +19,11 @@ class SdkNotDetected extends Warning {
   const SdkNotDetected();
 }
 
+class FvmConfigUnreadable extends Warning {
+  final String path;
+  const FvmConfigUnreadable(this.path);
+}
+
 class DartVersionUnknown extends Warning {
   const DartVersionUnknown();
 }

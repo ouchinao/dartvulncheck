@@ -19,14 +19,17 @@ void main() {
 
     test('git, path and sdk packages are skipped with their source', () {
       expect(
-          lock.skipped.map((s) => '${s.name} (${s.reason})'),
-          containsAll(
-              ['flutter (sdk)', 'my_fork (git)', 'zeibun_core (path)']));
+          lock.skipped.whereType<NotHosted>().map((s) => (s.name, s.source)),
+          containsAll([
+            ('flutter', PackageSource.sdk),
+            ('my_fork', PackageSource.git),
+            ('zeibun_core', PackageSource.path),
+          ]));
     });
 
     test('a version that is not semver is skipped, not fatal', () {
-      expect(lock.skipped.map((s) => '${s.name} (${s.reason})'),
-          contains('weird_version (invalid version)'));
+      expect(lock.skipped.whereType<InvalidVersion>().map((s) => s.name),
+          ['weird_version']);
     });
 
     test('direct main, direct dev and transitive are told apart', () {

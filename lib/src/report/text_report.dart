@@ -1,19 +1,28 @@
+import '../check/result.dart';
 import '../model/finding.dart';
 import '../model/package_ref.dart';
-import '../check/result.dart';
+import 'labels.dart';
 import 'summary.dart';
 
 // No colours: escape codes garble CI logs.
 String renderText(CheckResult result) {
   final out = StringBuffer();
-  var sdkLinePrinted = false;
 
-  final sdk = result.sdk;
-  if (sdk is SdkFailed) {
-    out
-      ..writeln('SDK (${sdk.info})')
-      ..writeln('  Could not check: ${sdk.error.message}')
-      ..writeln();
+  // The SDK line comes first, not under the first project: it is one fact
+  // about the whole run, and under a project it would read as that
+  // project's, or land under a failed one.
+  switch (result.sdk) {
+    case SdkChecked(:final info):
+      out
+        ..writeln('${sdkLabel(info)} (${sdkOriginLabel(info.origin)})')
+        ..writeln();
+    case SdkFailed(:final info, :final error):
+      out
+        ..writeln('${sdkLabel(info)} (${sdkOriginLabel(info.origin)})')
+        ..writeln('  Could not check: ${error.message}')
+        ..writeln();
+    case SdkNotChecked() || SdkNotFound():
+      break;
   }
 
   for (final (i, project) in result.projects.indexed) {
@@ -25,10 +34,6 @@ String renderText(CheckResult result) {
           ..writeln('  Could not check: ${error.message}');
       case CheckedProject():
         out.writeln(_header(project));
-        if (!sdkLinePrinted && sdk is SdkChecked) {
-          out.writeln('${sdk.info} (${sdk.info.origin})');
-          sdkLinePrinted = true;
-        }
         _writeFindings(out, project.findings);
     }
   }

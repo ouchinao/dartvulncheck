@@ -1,3 +1,4 @@
+import '../model/errors.dart';
 import 'http_fetcher.dart';
 
 class PubDevClient {
@@ -13,7 +14,12 @@ class PubDevClient {
             '${_trim(base.path)}/api/packages/${Uri.encodeComponent(package)}');
     final response = await fetcher.get(url,
         headers: const {'Accept': 'application/json'}, sourceName: sourceName);
-    if (response.statusCode != 200) return null;
+    // 404 alone means "no such package"; anything else is pub.dev failing
+    // to answer, which must not read as "no repository".
+    if (response.statusCode == 404) return null;
+    if (response.statusCode != 200) {
+      throw UnexpectedResponse(sourceName, 'HTTP ${response.statusCode}');
+    }
     final json = decodeJson(response, sourceName);
     if (json is! Map) return null;
     final latest = json['latest'];

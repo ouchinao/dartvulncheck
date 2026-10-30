@@ -17,10 +17,22 @@
         "total": 9,
         "queried": 5,
         "skipped": [
-          "flutter (sdk)",
-          "my_fork (git)",
-          "weird_version (invalid version)",
-          "zeibun_core (path)"
+          {
+            "name": "flutter",
+            "reason": "sdk"
+          },
+          {
+            "name": "my_fork",
+            "reason": "git"
+          },
+          {
+            "name": "weird_version",
+            "reason": "invalid version"
+          },
+          {
+            "name": "zeibun_core",
+            "reason": "path"
+          }
         ]
       },
       "findings": [

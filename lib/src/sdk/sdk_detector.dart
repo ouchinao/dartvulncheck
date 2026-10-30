@@ -32,12 +32,13 @@ class SdkDetector {
         warnings.add(SdkVersionOverrideInvalid(flutterOverride));
       } else {
         return SdkDetection(
-            SdkInfo(flutter: v, origin: '--sdk-version'), warnings);
+            SdkInfo(flutter: v, origin: SdkOrigin.override), warnings);
       }
     }
 
     for (final dir in projectDirs) {
-      final fvm = readFvmConfig(dir);
+      final (fvm, fvmWarnings) = readFvmConfig(dir);
+      warnings.addAll(fvmWarnings);
       if (fvm != null) return SdkDetection(fvm, warnings);
     }
 
@@ -61,25 +62,35 @@ class SdkDetector {
   }
 
   // FVM's pin before `flutter` on PATH: with FVM the pin is what builds.
-  static SdkInfo? readFvmConfig(String dir) {
-    for (final (file, key) in [
-      ('.fvmrc', 'flutter'),
-      (p.join('.fvm', 'fvm_config.json'), 'flutterSdkVersion'),
+  // A file that cannot be read is not skipped silently: falling through to
+  // `flutter` on PATH may then report a version FVM never builds with.
+  static (SdkInfo?, List<Warning>) readFvmConfig(String dir) {
+    final warnings = <Warning>[];
+    for (final (file, key, origin) in [
+      ('.fvmrc', 'flutter', SdkOrigin.fvmrc),
+      (
+        p.join('.fvm', 'fvm_config.json'),
+        'flutterSdkVersion',
+        SdkOrigin.fvmConfig
+      ),
     ]) {
       final f = File(p.join(dir, file));
       if (!f.existsSync()) continue;
+      final Object? json;
       try {
-        final json = jsonDecode(f.readAsStringSync());
-        if (json is! Map) continue;
-        final v = _parseVersion('${json[key]}');
-        if (v != null) {
-          return SdkInfo(flutter: v, origin: p.basename(file));
-        }
+        json = jsonDecode(f.readAsStringSync());
       } on FormatException {
+        warnings.add(FvmConfigUnreadable(f.path));
         continue;
       }
+      if (json is! Map) {
+        warnings.add(FvmConfigUnreadable(f.path));
+        continue;
+      }
+      final v = _parseVersion('${json[key]}');
+      if (v != null) return (SdkInfo(flutter: v, origin: origin), warnings);
     }
-    return null;
+    return (null, warnings);
   }
 
   // Not jsonDecode on the whole output: Flutter may print an upgrade banner
@@ -103,7 +114,7 @@ class SdkDetector {
       flutter: flutter,
       dart: dart,
       channel: channel is String && channel.isNotEmpty ? channel : null,
-      origin: 'flutter --version',
+      origin: SdkOrigin.flutterCommand,
     );
   }
 
@@ -113,7 +124,7 @@ class SdkDetector {
     if (m == null) return null;
     final v = _parseVersion(m.group(1)!);
     if (v == null) return null;
-    return SdkInfo(dart: v, channel: m.group(2), origin: 'dart --version');
+    return SdkInfo(dart: v, channel: m.group(2), origin: SdkOrigin.dartCommand);
   }
 
   static Version? _parseVersion(String text) {

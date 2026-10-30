@@ -5,6 +5,8 @@ String describeWarning(Warning w) => switch (w) {
         '--sdk-version "$value" is not a version',
       FlutterVersionUnreadable() =>
         'cannot read the output of `flutter --version --machine`',
+      FvmConfigUnreadable(:final path) =>
+        '$path cannot be read, so the FVM pin was ignored',
       SdkNotDetected() =>
         'the Flutter/Dart SDK version is unknown, so the SDK was not '
             'checked. Without `flutter` on PATH, pass it with --sdk-version',

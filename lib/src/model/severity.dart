@@ -22,6 +22,4 @@ enum Severity {
       _ => Severity.unknown,
     };
   }
-
-  static const failOnValues = ['low', 'moderate', 'high', 'critical'];
 }

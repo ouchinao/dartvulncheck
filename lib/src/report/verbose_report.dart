@@ -1,4 +1,5 @@
 import '../check/result.dart';
+import '../model/package_ref.dart';
 import 'notice_text.dart';
 
 String renderVerbose(CheckResult result) {
@@ -13,10 +14,8 @@ String renderVerbose(CheckResult result) {
           '${counts.skippedTransitive}');
     }
     if (counts.skipped.isNotEmpty) {
-      out.writeln('  not looked up: '
-          '${[
-        for (final s in counts.skipped) '${s.name} (${s.reason})'
-      ].join(', ')}');
+      out.writeln(
+          '  not looked up: ${counts.skipped.map(_skippedLabel).join(', ')}');
     }
     for (final pkg in counts.thirdPartyHosted) {
       out.writeln('  ${pkg.name} (${pkg.hostedUrl}): hosted outside pub.dev; '
@@ -35,3 +34,9 @@ String renderVerbose(CheckResult result) {
   }
   return '$out';
 }
+
+String _skippedLabel(SkippedPackage s) => switch (s) {
+      NotHosted(:final source) => '${s.name} (${source.name})',
+      InvalidVersion(:final version) =>
+        '${s.name} (invalid version "$version")',
+    };

@@ -52,13 +52,19 @@ class PackageRef {
     if (host == null || host.isEmpty) return false;
     return host != 'pub.dev' && host != 'pub.dartlang.org';
   }
-
-  @override
-  String toString() => '$name $version';
 }
 
-class SkippedPackage {
+sealed class SkippedPackage {
   final String name;
-  final String reason;
-  const SkippedPackage(this.name, this.reason);
+  const SkippedPackage(this.name);
+}
+
+class NotHosted extends SkippedPackage {
+  final PackageSource source;
+  const NotHosted(super.name, this.source);
+}
+
+class InvalidVersion extends SkippedPackage {
+  final String version;
+  const InvalidVersion(super.name, this.version);
 }

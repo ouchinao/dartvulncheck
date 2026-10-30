@@ -18,12 +18,7 @@ List<Finding> matchSdk(
 
   for (final advisory in advisories) {
     final bySubject = <String, List<AffectedPackage>>{};
-    // Not skipped when vulnerabilities[] is empty: it still concerns the SDK
-    // of its repository, as unverified.
-    final entries = advisory.affected.isEmpty
-        ? const [AffectedPackage()]
-        : advisory.affected;
-    for (final e in entries) {
+    for (final e in _entries(advisory)) {
       final subject = sdkSubject(e, advisory.repository);
       if (subject != null) (bySubject[subject] ??= []).add(e);
     }
@@ -61,9 +56,13 @@ List<Finding> matchSdk(
 // Asked once per run, not reported by matchSdk per project: whether the
 // Dart version matters depends only on the advisories, and the warning
 // should appear once.
-bool hasDartAdvisories(List<Advisory> advisories) => advisories.any((a) =>
-    (a.affected.isEmpty ? const [AffectedPackage()] : a.affected)
-        .any((e) => sdkSubject(e, a.repository) == 'Dart'));
+bool hasDartAdvisories(List<Advisory> advisories) => advisories
+    .any((a) => _entries(a).any((e) => sdkSubject(e, a.repository) == 'Dart'));
+
+// Not skipped when vulnerabilities[] is empty: it still concerns the SDK of
+// its repository, as unverified.
+List<AffectedPackage> _entries(Advisory a) =>
+    a.affected.isEmpty ? const [AffectedPackage()] : a.affected;
 
 String? sdkSubject(AffectedPackage e, String? repository) {
   if (!e.hasName) {

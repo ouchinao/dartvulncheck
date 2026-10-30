@@ -1,5 +1,6 @@
-app/pubspec.lock  9 packages (hosted 6, git 1, path 1, sdk 1)
 Flutter 3.47.6 stable / Dart 3.13.5 (flutter --version)
+
+app/pubspec.lock  9 packages (hosted 6, git 1, path 1, sdk 1)
 
 SDK
   GHSA-frr6-h895-5pxp  Flutter 3.47.6  HIGH  TLS MitM via compromised eMudhra intermediate CA certificates

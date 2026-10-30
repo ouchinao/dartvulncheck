@@ -37,7 +37,7 @@ class GitHubClient {
           await fetcher.get(url, headers: _headers, sourceName: sourceName);
       if (response.statusCode == 404) return null;
       _throwIfRateLimited(response);
-      if (response.statusCode == 403) {
+      if (response.statusCode == 401 || response.statusCode == 403) {
         throw AccessDenied(sourceName, response.statusCode);
       }
       if (response.statusCode != 200) {

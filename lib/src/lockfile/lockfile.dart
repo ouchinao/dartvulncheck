@@ -60,7 +60,7 @@ Lockfile parseLockfile(String content, {required String path}) {
     counts[source] = (counts[source] ?? 0) + 1;
 
     if (source != PackageSource.hosted) {
-      skipped.add(SkippedPackage(name, '${value['source']}'));
+      skipped.add(NotHosted(name, source));
       continue;
     }
 
@@ -68,7 +68,7 @@ Lockfile parseLockfile(String content, {required String path}) {
     try {
       version = Version.parse('${value['version']}');
     } on FormatException {
-      skipped.add(SkippedPackage(name, 'invalid version'));
+      skipped.add(InvalidVersion(name, '${value['version']}'));
       continue;
     }
 

@@ -290,6 +290,17 @@ void main() {
       expect(result.failures, 0);
     });
 
+    test('a pub.dev error is a failed lookup, not "no repository"', () async {
+      final api = FakeApi()..pubDevStatus = 429;
+      final source = RepositoryPackageSource(
+          PubDevClient(fetcherFor(api.client), base: Endpoints.defaults.pubDev),
+          RepositoryAdvisoryFetcher(githubFor(api)));
+      final result = await source.query([pkg('dio', '4.0.6')]);
+      expect(result.notes.single,
+          isA<LookupFailed>().having((n) => n.subject, 'subject', 'dio'));
+      expect(result.failures, 1);
+    });
+
     test('each repository is fetched once per run', () async {
       final api = FakeApi();
       final fetcher = RepositoryAdvisoryFetcher(githubFor(api));

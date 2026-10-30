@@ -46,30 +46,18 @@ class Finding {
   Set<String> get allIds =>
       {id.toUpperCase(), for (final a in aliases) a.toUpperCase()};
 
-  Finding copyWith({
-    List<String>? aliases,
-    Version? fixed,
-    Map<String, Version>? alsoFixedIn,
-    bool? ignored,
-  }) =>
-      Finding(
+  Finding copyWith({List<String>? aliases, bool? ignored}) => Finding(
         id: id,
         aliases: aliases ?? this.aliases,
         kind: kind,
         subject: subject,
         current: current,
-        fixed: fixed ?? this.fixed,
-        alsoFixedIn: alsoFixedIn ?? this.alsoFixedIn,
+        fixed: fixed,
+        alsoFixedIn: alsoFixedIn,
         dependency: dependency,
         severity: severity,
         summary: summary,
         url: url,
         ignored: ignored ?? this.ignored,
       );
-
-  bool counts({required Severity failOn, required bool strict}) {
-    if (ignored) return false;
-    if (kind.isUnverified && !strict) return false;
-    return severity.isAtLeast(failOn);
-  }
 }

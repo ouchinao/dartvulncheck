@@ -14,10 +14,10 @@ What it adds over the warning from `flutter pub get`:
 ## Install
 
 ```sh
-dart pub global activate --source git https://github.com/ouchinao/dartvulncheck --git-ref v0.2.0
+dart pub global activate dartvulncheck 0.2.1
 ```
 
-Releases are tagged `v<version>`. Pin one rather than the head of `main`, so that the tool does not change under you between runs.
+Or from git, at a release tag: `dart pub global activate --source git https://github.com/ouchinao/dartvulncheck --git-ref v0.2.1`. Either way, name a version rather than the head of `main`, so that the tool does not change under you between runs.
 
 ## Usage
 
@@ -71,7 +71,7 @@ vulncheck:
     - uses: subosito/flutter-action@v2
       with:
         channel: stable
-    - run: dart pub global activate --source git https://github.com/ouchinao/dartvulncheck --git-ref v0.2.0
+    - run: dart pub global activate dartvulncheck 0.2.1
     - run: dart pub global run dartvulncheck app packages/core
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -116,7 +116,7 @@ UPDATE_GOLDENS=1 dart test test/report_test.dart  # after an intended output cha
 
 The GitHub API responses under `test/fixtures/responses/` are recorded, not written by hand. To refresh them, run the `Record API fixtures` workflow in Actions and copy the files from its artifact over the existing ones.
 
-A release is a version bump in `pubspec.yaml` and `lib/src/version.dart`, an entry in `CHANGELOG.md`, and, once that is merged, a `v<version>` tag on `main`.
+A release is a version bump in `pubspec.yaml` and `lib/src/version.dart`, an entry in `CHANGELOG.md`, and, once that is merged, a `v<version>` tag on `main` and `dart pub publish` from a checkout of that tag.
 
 Code under `lib/src/` is split by layer: `lockfile/` (input) → `sources/` (lookup) → `match/` (matching) → `report/` (output). `check/` runs them in order, `cli/` handles arguments and exit codes, and `model/` holds the shared types. Only `sources/` talks to the network, so every test runs offline.
 

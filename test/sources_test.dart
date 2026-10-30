@@ -404,6 +404,36 @@ void main() {
       expect(url, 'https://github.com/cfug/dio/blob/main/dio');
     });
 
+    test('the latest release is latest.version on pub.dev', () async {
+      final api = FakeApi();
+      final client =
+          PubDevClient(fetcherFor(api.client), base: Endpoints.defaults.pubDev);
+      expect(await client.latestVersion('dio'), Version.parse('5.11.1'));
+      expect(await client.latestVersion('no_such_package'), isNull);
+    });
+
+    test('a release check is newer, up to date, or unknown', () async {
+      Future<ReleaseStatus> statusFor(String? released, {int? status}) {
+        final api = FakeApi()
+          ..releasedVersion = released
+          ..pubDevStatus = status;
+        return ReleaseCheck(
+                PubDevClient(fetcherFor(api.client),
+                    base: Endpoints.defaults.pubDev),
+                current: Version.parse('0.2.3'))
+            .status();
+      }
+
+      expect(
+          await statusFor('0.3.0'),
+          isA<NewerRelease>()
+              .having((s) => s.latest, 'latest', Version.parse('0.3.0')));
+      expect(await statusFor('0.2.3'), isA<UpToDate>());
+      expect(await statusFor('0.2.0'), isA<UpToDate>());
+      expect(await statusFor(null), isA<ReleaseUnknown>());
+      expect(await statusFor('0.3.0', status: 503), isA<ReleaseUnknown>());
+    });
+
     test(
         'matches lock packages by name and spreads package-less advisories '
         'over the repository\'s packages', () async {

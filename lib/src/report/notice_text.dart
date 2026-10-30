@@ -1,4 +1,5 @@
 import '../model/notices.dart';
+import '../model/release.dart';
 import 'labels.dart';
 
 String describeWarning(Warning w) => switch (w) {
@@ -26,6 +27,9 @@ String describeWarning(Warning w) => switch (w) {
       ThirdPartyHostedChecked(:final count) =>
         '$count package(s) from a registry other than pub.dev were checked '
             'against pub.dev advisories of the same name (--verbose lists them)',
+      NewerReleaseAvailable(:final current, :final latest) =>
+        'dartvulncheck $latest is available; this run used $current '
+            '(https://pub.dev/packages/dartvulncheck/changelog)',
       EndpointOverridden(:final variable, :final url) =>
         '$variable is set: requests, and the token with them, go to $url',
     };
@@ -38,3 +42,6 @@ String describeNote(LookupNote n) => switch (n) {
       RepositoryUnreadable() => 'advisories could not be read',
       LookupFailed(:final error) => error.message,
     };
+
+String describeReleaseUnknown(ReleaseUnknown s) =>
+    'release check skipped: ${s.cause.message}';

@@ -1,3 +1,5 @@
+import 'package:pub_semver/pub_semver.dart';
+
 import '../model/errors.dart';
 import 'http_fetcher.dart';
 
@@ -9,6 +11,26 @@ class PubDevClient {
   static const sourceName = 'pub.dev';
 
   Future<String?> repositoryUrl(String package) async {
+    final pubspec = (await _latest(package))?['pubspec'];
+    if (pubspec is! Map) return null;
+    for (final key in ['repository', 'homepage']) {
+      final v = pubspec[key];
+      if (v is String && v.trim().isNotEmpty) return v.trim();
+    }
+    return null;
+  }
+
+  Future<Version?> latestVersion(String package) async {
+    final v = (await _latest(package))?['version'];
+    if (v is! String) return null;
+    try {
+      return Version.parse(v);
+    } on FormatException {
+      return null;
+    }
+  }
+
+  Future<Map<Object?, Object?>?> _latest(String package) async {
     final url = base.replace(
         path:
             '${_trim(base.path)}/api/packages/${Uri.encodeComponent(package)}');
@@ -23,13 +45,7 @@ class PubDevClient {
     final json = decodeJson(response, sourceName);
     if (json is! Map) return null;
     final latest = json['latest'];
-    final pubspec = latest is Map ? latest['pubspec'] : null;
-    if (pubspec is! Map) return null;
-    for (final key in ['repository', 'homepage']) {
-      final v = pubspec[key];
-      if (v is String && v.trim().isNotEmpty) return v.trim();
-    }
-    return null;
+    return latest is Map ? latest : null;
   }
 
   static String _trim(String path) =>

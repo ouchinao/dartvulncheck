@@ -28,6 +28,10 @@ class FakeApi {
   int? osvStatus;
   int? pubDevStatus;
 
+  // Unset by default, not the running version: a test that did not ask for
+  // a release notice then cannot get one, whatever version is running.
+  String? releasedVersion;
+
   Set<String> forbiddenRepos = {};
 
   // Appended to the recorded response, not kept as hand-written fixture
@@ -91,6 +95,13 @@ class FakeApi {
     final m = RegExp(r'^/api/packages/([^/]+)$').firstMatch(url.path);
     if (m == null) return http.Response('', 404);
     return switch (m.group(1)) {
+      'dartvulncheck' when releasedVersion != null => _json({
+          'name': 'dartvulncheck',
+          'latest': {
+            'version': releasedVersion,
+            'pubspec': {'name': 'dartvulncheck'},
+          },
+        }),
       'dio' => _json(fixtureJson('responses/pub_dev_package_dio.json')),
       'meta' => _json({
           'name': 'meta',

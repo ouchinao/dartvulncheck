@@ -1,3 +1,10 @@
+## 0.2.1
+
+- First version on pub.dev: `dart pub global activate dartvulncheck`.
+- `docs/` is now `doc/`, as the pub package layout expects; the threat model
+  is at `doc/threat-model.md`.
+- An `example/` with the CI job and the command lines.
+
 ## 0.2.0
 
 - Endpoint overrides (`DARTVULNCHECK_*_URL`) must be `https`; `http` is

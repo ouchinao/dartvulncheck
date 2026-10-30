@@ -2,7 +2,7 @@ name: dartvulncheck
 description: >-
   Checks pubspec.lock and the Flutter/Dart SDK you build with against known
   vulnerabilities, and fails CI when it finds one.
-version: 0.2.0
+version: 0.2.1
 repository: https://github.com/ouchinao/dartvulncheck
 issue_tracker: https://github.com/ouchinao/dartvulncheck/issues
 topics:

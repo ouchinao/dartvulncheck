@@ -23,6 +23,9 @@ String describeWarning(Warning w) => switch (w) {
       SdkVersionMismatch(:final chosen, :final onPath, :final origin) =>
         'Flutter $chosen (${sdkOriginLabel(origin)}) was checked, but '
             '`flutter` on PATH is $onPath',
+      ThirdPartyHostedChecked(:final count) =>
+        '$count package(s) from a registry other than pub.dev were checked '
+            'against pub.dev advisories of the same name (--verbose lists them)',
       EndpointOverridden(:final variable, :final url) =>
         '$variable is set: requests, and the token with them, go to $url',
     };

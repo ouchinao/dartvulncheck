@@ -216,6 +216,7 @@ void main() {
     expect(r.err, contains('my_fork (git)'));
     expect(r.err, contains('zeibun_core (path)'));
     expect(r.err, contains('internal_utils'));
+    expect(r.err, contains('registry other than pub.dev'));
   });
 
   test('--version prints the version', () async {

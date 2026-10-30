@@ -53,6 +53,11 @@ class SdkVersionMismatch extends Warning {
       {required this.chosen, required this.onPath, required this.origin});
 }
 
+class ThirdPartyHostedChecked extends Warning {
+  final int count;
+  const ThirdPartyHostedChecked(this.count);
+}
+
 class EndpointOverridden extends Warning {
   final String variable;
   final Uri url;

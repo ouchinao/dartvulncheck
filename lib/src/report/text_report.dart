@@ -53,10 +53,8 @@ String renderText(CheckResult result) {
 
 void _writeFindings(StringBuffer out, List<Finding> findings) {
   final visible = sortFindings(findings.where((f) => !f.ignored));
-  if (visible.isEmpty) {
-    out.writeln('  No problems found');
-    return;
-  }
+  final ignored = sortFindings(findings.where((f) => f.ignored));
+  if (visible.isEmpty) out.writeln('  No problems found');
   for (final (title, group) in [
     ('SDK', visible.where((f) => f.kind.isSdk)),
     ('Packages', visible.where((f) => !f.kind.isSdk)),
@@ -68,6 +66,19 @@ void _writeFindings(StringBuffer out, List<Finding> findings) {
     for (final f in group) {
       _writeFinding(out, f);
     }
+  }
+  if (ignored.isNotEmpty) _writeIgnored(out, ignored);
+}
+
+// Listed, not only counted: an ignore added in a pull request should show in
+// the CI log, not only in a diff of pubspec.yaml.
+void _writeIgnored(StringBuffer out, List<Finding> ignored) {
+  out
+    ..writeln()
+    ..writeln('Ignored');
+  for (final f in ignored) {
+    final aliases = f.aliases.isEmpty ? '' : '  ${f.aliases.join(', ')}';
+    out.writeln('  ${f.id}  ${f.subject} ${f.current}$aliases');
   }
 }
 

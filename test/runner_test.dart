@@ -105,6 +105,11 @@ void main() {
       ]);
       expect(r.code, ExitCodes.ok);
       expect(r.out, contains('2 ignored'));
+      expect(
+          r.out,
+          contains('Ignored\n'
+              '  GHSA-9324-jv53-9cc8  dio 4.0.6  CVE-2021-31402\n'
+              '  GHSA-4rgh-jx4f-qfcq  http 0.13.2  CVE-2020-35669\n'));
     });
   });
 

@@ -57,7 +57,7 @@ ignored_advisories:
   - GHSA-xxxx-xxxx-xxxx  # iOS only; this app ships on Android
 ```
 
-Ignored findings are counted in the summary line, kept in the JSON output with `"ignored": true`, and listed by `--verbose`, so a growing ignore list stays visible. The text report does not list them individually.
+Ignored findings are counted in the summary line, kept in the JSON output with `"ignored": true`, and listed by `--verbose`, so a growing ignore list stays visible. The text report lists them under `Ignored`.
 
 ## GitHub Actions
 

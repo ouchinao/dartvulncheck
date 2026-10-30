@@ -8,4 +8,5 @@
 - `github_*.json`: hand-built from the GitHub REST docs
   (`GET /advisories`, `GET /repos/{owner}/{repo}/security-advisories`).
   The GitHub API was not reachable when these were written.
-  TODO: replace with recorded responses (keep them untrimmed, per design §9).
+  TODO: replace with recorded responses, kept untrimmed so that extra
+  fields in real responses keep being exercised.

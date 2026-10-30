@@ -1,6 +1,6 @@
 ## 0.1.0
 
-- First version (design doc §1–§10).
+- First version.
 - Checks hosted packages in `pubspec.lock` against the GitHub Advisory
   Database, with OSV.dev as a fallback when GitHub is unreachable.
 - Checks repository security advisories of each package's GitHub repository

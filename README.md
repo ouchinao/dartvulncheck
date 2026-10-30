@@ -1,59 +1,65 @@
 # dartvulncheck
 
-govulncheck の Dart/Flutter 版。`pubspec.lock` と、ビルドに使う Flutter/Dart SDK を既知の脆弱性と照合し、見つかったら CI を落とす純 Dart のコマンドラインツール。
+govulncheck for Dart and Flutter. It checks the packages pinned in `pubspec.lock`, and the Flutter/Dart SDK you build with, against known vulnerabilities, and fails CI when it finds one. Pure Dart, no Flutter required.
 
-`flutter pub get` の警告との違い:
+What it adds over the warning from `flutter pub get`:
 
-| `flutter pub get` の警告 | dartvulncheck |
+| `flutter pub get` warning | dartvulncheck |
 | --- | --- |
-| 表示だけで CI は通る | 終了コードで CI を落とせる |
-| pub パッケージだけ | Flutter/Dart SDK 本体の脆弱性も見る |
-| GitHub のレビュー後にしか載らない | メンテナが公開した時点のリポジトリアドバイザリも見る |
-| 人が読む文だけ | `--json` で機械が読める |
+| Printed only; CI still passes | Fails CI through its exit code |
+| pub packages only | Also checks the Flutter/Dart SDK itself |
+| Only after GitHub has reviewed the advisory | Also reads repository advisories as soon as maintainers publish them |
+| Human-readable text only | Machine-readable output with `--json` |
 
-## インストール
+## Install
 
 ```sh
 dart pub global activate --source git https://github.com/ouchinao/dartvulncheck
 ```
 
-## 使い方
+## Usage
 
 ```sh
-dartvulncheck                         # カレントディレクトリ
-dartvulncheck app packages/zeibun_core  # モノレポの複数ディレクトリ
+dartvulncheck                           # current directory
+dartvulncheck app packages/core         # several directories (monorepo)
 ```
 
-`pubspec.lock` を読むので、先に `dart pub get`（または `flutter pub get`）が済んでいる必要があります。
+It reads `pubspec.lock`, so run `dart pub get` (or `flutter pub get`) first.
 
-| オプション | 意味 | 既定 |
+| Option | Meaning | Default |
 | --- | --- | --- |
-| `--json` | JSON で出力する | テキスト |
-| `--fail-on <level>` | この深刻度以上があれば終了コード 3（`low` / `moderate` / `high` / `critical`） | `low` |
-| `--ignore <id>` | 無視するアドバイザリ ID（GHSA / CVE）。複数可。`pubspec.yaml` の `ignored_advisories` に加算 | なし |
-| `--strict` | 範囲が読めず「要確認」になった件も脆弱性として数える | 数えない |
-| `--no-repo-advisories` | リポジトリアドバイザリ（速報）を省く | `GITHUB_TOKEN` が無ければ自動で省く |
-| `--sdk-version <ver>` | Flutter のバージョンを手で渡す | `.fvmrc` → `flutter --version` → `dart --version` |
-| `--no-sdk` | SDK の照合を省く | 照合する |
-| `--no-transitive` | 推移的依存を見ない | 見る |
-| `--verbose` | 照会した件数、無視した件数、照会できなかったパッケージを出す | 出さない |
+| `--json` | Print JSON | Text |
+| `--fail-on <level>` | Exit 3 if anything at this severity or above is found (`low` / `moderate` / `high` / `critical`) | `low` |
+| `--ignore <id>` | Advisory ID to ignore (GHSA or CVE). Repeatable. Added to `ignored_advisories` in `pubspec.yaml` | None |
+| `--strict` | Also count advisories whose affected range cannot be read ("unverified") | Not counted |
+| `--no-repo-advisories` | Skip repository advisories (the early-warning stage) | Skipped automatically without `GITHUB_TOKEN` |
+| `--sdk-version <ver>` | Pass the Flutter version by hand | `.fvmrc` → `flutter --version` → `dart --version` |
+| `--no-sdk` | Do not check the SDK | Checked |
+| `--no-transitive` | Do not check transitive dependencies | Checked |
+| `--verbose` | Show how many packages were queried and ignored, and which could not be looked up | Off |
 
-### 終了コード
+Output messages are currently in Japanese.
 
-| コード | 意味 |
+### Exit codes
+
+| Code | Meaning |
 | --- | --- |
-| 0 | 問題なし（無視した件だけの場合も 0） |
-| 1 | 実行できなかった（`pubspec.lock` が無い、ネットワーク失敗、引数の誤り） |
-| 3 | 脆弱性が見つかった（govulncheck と同じ値） |
+| 0 | No problems (also when every finding is ignored) |
+| 1 | Could not check (`pubspec.lock` missing, network failure, bad arguments) |
+| 3 | Vulnerabilities found (same value as govulncheck) |
 
-### 無視する
+"Could not check" never passes as "no problems", and there is no option to make it do so.
 
-`pubspec.yaml` に pub 公式のキーで書きます。`flutter pub get` の警告も同じリストで止まります。
+### Ignoring an advisory
+
+Use pub's own key in `pubspec.yaml`. The same list also silences the `flutter pub get` warning.
 
 ```yaml
 ignored_advisories:
-  - GHSA-xxxx-xxxx-xxxx  # iOS だけの問題。Android アプリなので該当しない
+  - GHSA-xxxx-xxxx-xxxx  # iOS only; this app ships on Android
 ```
+
+Ignored findings are still listed (with `"ignored": true` in JSON) and counted in the summary, so a growing ignore list stays visible.
 
 ## GitHub Actions
 
@@ -66,33 +72,44 @@ vulncheck:
       with:
         channel: stable
     - run: dart pub global activate --source git https://github.com/ouchinao/dartvulncheck
-    - run: dart pub global run dartvulncheck app packages/zeibun_core
+    - run: dart pub global run dartvulncheck app packages/core
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-- `pub get` は要りません。読むのはコミットされた `pubspec.lock` だけです。
-- `GITHUB_TOKEN` はリポジトリアドバイザリの段に数十回の問い合わせが要るため（未認証は 60 回/時）。Actions の既定トークンで足ります。
-- PR 毎に加えて `schedule` で週 1 回回すのがおすすめです。コードが変わらなくてもアドバイザリは増えます。
-- Dependabot アラートの代わりではなく併用です。
+- No `pub get` needed: only the committed `pubspec.lock` is read.
+- `flutter-action` is there so the SDK version can be read from `flutter --version`. For pure Dart projects, `dart-lang/setup-dart` is enough.
+- `GITHUB_TOKEN` is needed because the repository-advisory stage makes dozens of requests (60/hour without a token, 1,000/hour with one). The default Actions token is enough.
+- Run it on a weekly `schedule` as well as on pull requests: new advisories appear even when your code does not change.
+- This complements Dependabot alerts rather than replacing them. Dependabot opens fix PRs; this tool stops CI and also covers the SDK and unreviewed advisories.
 
-## 取得元
+## Data sources
 
-| 段 | 元 | 対象 |
+| Stage | Source | Covers |
 | --- | --- | --- |
-| 主 | GitHub Advisory Database（`GET /advisories?ecosystem=pub&affects=…`） | hosted パッケージ |
-| 速報 | リポジトリアドバイザリ（`GET /repos/{owner}/{repo}/security-advisories`） | GitHub にリポジトリがあるパッケージと、`dart-lang/sdk`・`flutter/flutter` |
-| 予備 | OSV.dev（`POST /v1/querybatch`） | GitHub が落ちているときの切り替え先 |
+| Primary | GitHub Advisory Database (`GET /advisories?ecosystem=pub&affects=…`) | Hosted packages |
+| Early warning | Repository security advisories (`GET /repos/{owner}/{repo}/security-advisories`) | Packages with a GitHub repository, plus `dart-lang/sdk` and `flutter/flutter` |
+| Fallback | OSV.dev (`POST /v1/querybatch`) | Used only when GitHub is unreachable |
 
-接続先は環境変数 `DARTVULNCHECK_GITHUB_API_URL` / `DARTVULNCHECK_OSV_API_URL` / `DARTVULNCHECK_PUB_URL` で差し替えられます（テストや GitHub Enterprise 向け）。
+Base URLs can be overridden with `DARTVULNCHECK_GITHUB_API_URL`, `DARTVULNCHECK_OSV_API_URL` and `DARTVULNCHECK_PUB_URL` (for tests and GitHub Enterprise).
 
-## 開発
+## Limitations
+
+- It does not check whether vulnerable code is actually called. pub advisories do not say which functions are affected, so there is nothing to match a call graph against.
+- Advisories that only affect some platforms are reported for all platforms. Use `ignored_advisories` with a comment for the ones that do not apply.
+- `git` and `path` dependencies cannot be looked up. They are listed with `--verbose`.
+
+## Development
 
 ```sh
 dart pub get
 dart analyze
 dart test
-UPDATE_GOLDENS=1 dart test test/report_test.dart  # 出力の形を意図して変えたとき
+UPDATE_GOLDENS=1 dart test test/report_test.dart  # after an intended output change
 ```
 
-構成は `lib/src/` の下に `lockfile/`（入力）→ `sources/`（照会）→ `match/`（照合）→ `report/`（報告）、それらを順に呼ぶ `check/`、引数と終了コードの `cli/`、共有の型は `model/`。通信するのは `sources/` だけなので、テストは全てオフラインで動きます。
+Code under `lib/src/` is split by layer: `lockfile/` (input) → `sources/` (lookup) → `match/` (matching) → `report/` (output). `check/` runs them in order, `cli/` handles arguments and exit codes, and `model/` holds the shared types. Only `sources/` talks to the network, so every test runs offline.
+
+## License
+
+MIT

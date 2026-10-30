@@ -1,6 +1,6 @@
 import 'package:pub_semver/pub_semver.dart';
 
-// Not VersionConstraint.parse (the design doc's plan): it treats `<3.13.7`
+// Not VersionConstraint.parse: it treats `<3.13.7`
 // as excluding `3.13.7-dev.1`, which is right for dependency resolution but
 // wrong here. A pre-release of the fixed version was cut before the fix, and
 // missing it would let beta builds such as `3.50.0-0.2.pre` through. Hence

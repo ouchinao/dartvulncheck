@@ -1,3 +1,10 @@
+## 0.2.3
+
+- The install lines in the README and the example name the current version;
+  0.2.2 still showed 0.2.1. A test now keeps them in step with the version.
+- The threat model and a code comment gave a wrong reason for not following
+  redirects. No change to the tool.
+
 ## 0.2.2
 
 - Published to pub.dev by the `Publish to pub.dev` workflow from the

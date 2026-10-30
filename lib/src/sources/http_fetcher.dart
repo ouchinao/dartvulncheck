@@ -94,9 +94,10 @@ class HttpFetcher {
 
   static const _baseHeaders = {'User-Agent': userAgent};
 
-  // Redirects are not followed: dart:io copies every header, Authorization
-  // included, onto the redirected request whatever host it names, and none
-  // of the APIs used here redirect a correct request.
+  // Redirects are not followed: following one lets a host the configuration
+  // does not name answer the query, and none of the APIs used here redirect
+  // a correct request. Not for the token's sake: dart:io already drops
+  // Authorization on a redirect to another origin.
   http.Request _request(String method, Uri url, Map<String, String> headers,
       {String? body}) {
     final request = http.Request(method, url)

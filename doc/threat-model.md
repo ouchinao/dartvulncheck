@@ -41,7 +41,7 @@ scope** (not this tool's problem to solve).
 | --- | --- | --- | --- |
 | T1 | `pubspec.lock` is edited so that the checked versions are not the built ones. | accepted | The lock is the input by definition. Run `dart pub get --enforce-lockfile` in the build job so that the lock the tool read is the lock the build used. |
 | T2 | A finding is silenced with `ignored_advisories` or `--ignore`. | accepted, made visible | This is pub's own mechanism. Ignored findings are listed under "Ignored" in the text report, kept in the JSON with `"ignored": true`, and counted in the summary, so a new ignore is readable in the CI log. |
-| T3 | Responses altered in transit. | mitigated | HTTPS; redirects are not followed; plain `http` is refused except on localhost. |
+| T3 | Responses altered in transit. | mitigated | HTTPS; plain `http` is refused except on localhost; redirects are not followed, so no host other than the configured one can answer a query. |
 | T4 | A source itself serves false data (a compromised GitHub, pub.dev or OSV.dev). | out of scope | The sources are the trust root. The fallback does not help here: OSV.dev mirrors the GitHub database. |
 | T5 | Package names in the lock crafted to alter a request (`,` in an `affects=` value, `/` in a pub.dev path). | mitigated | Names are URL-encoded or sent as JSON; a crafted name can at most add a harmless entry to a query. |
 
@@ -56,7 +56,7 @@ scope** (not this tool's problem to solve).
 
 | ID | Threat | Status | What the code does |
 | --- | --- | --- | --- |
-| I1 | The token is sent to another host by following a `Link: rel="next"` URL or a redirect in a response. | mitigated | Pagination follows a link only within the origin of the configured API base. Redirects are not followed at all; dart:io would copy the `Authorization` header onto the redirected request whatever host it named. |
+| I1 | The token is sent to another host by following a `Link: rel="next"` URL or a redirect in a response. | mitigated | Pagination follows a link only within the origin of the configured API base: the tool sends each page request itself, with the token. A redirect is no path for the token, since dart:io drops `Authorization` on a redirect to another origin; redirects are refused for T3's reason instead. |
 | I2 | The token is sent to a host chosen through `DARTVULNCHECK_GITHUB_API_URL`. | mitigated | See S1. |
 | I3 | The token appears in output or an error message. | mitigated | Nothing prints headers or request URLs with credentials; errors carry a status code and a host. |
 | I4 | A private registry URL with credentials in its userinfo, taken from `pubspec.lock`, is printed by `--verbose`. | mitigated | Only the host is printed. |

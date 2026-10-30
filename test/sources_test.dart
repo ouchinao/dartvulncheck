@@ -301,6 +301,18 @@ void main() {
       expect(result.failures, 1);
     });
 
+    test(
+        'an unnamed advisory in the SDK repository stays with the SDK, not '
+        'with the packages published from it', () async {
+      final api = FakeApi();
+      final source = RepositoryPackageSource(
+          PubDevClient(fetcherFor(api.client), base: Endpoints.defaults.pubDev),
+          RepositoryAdvisoryFetcher(githubFor(api)));
+      final result = await source.query([pkg('meta', '1.19.0')]);
+      expect(result.advisories, isEmpty);
+      expect(result.notes, isEmpty);
+    });
+
     test('each repository is fetched once per run', () async {
       final api = FakeApi();
       final fetcher = RepositoryAdvisoryFetcher(githubFor(api));

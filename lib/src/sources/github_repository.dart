@@ -159,9 +159,13 @@ class RepositoryPackageSource {
         if (e.hasName && _isPub(e) && lockNames.contains(e.name)) e,
     ];
     // Not skipped when no package is named: it may concern any package
-    // published from this repository.
+    // published from this repository. Not in the SDK repositories, though:
+    // there an unnamed advisory is about the SDK, which the SDK stage
+    // reports, and spreading it over meta, analyzer and the rest would put
+    // the same three SDK advisories on every Flutter project as noise.
     final unnamed = a.affected.isEmpty || a.affected.any((e) => !e.hasName);
-    if (unnamed) {
+    final sdkRepository = SdkAdvisorySource.repositories.contains(a.repository);
+    if (unnamed && !sdkRepository) {
       for (final name in fromRepo) {
         if (!affected.any((e) => e.name == name)) {
           affected.add(AffectedPackage(name: name, ecosystem: 'pub'));

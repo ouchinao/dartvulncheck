@@ -84,6 +84,17 @@ class FakeApi {
     if (m == null) return http.Response('', 404);
     return switch (m.group(1)) {
       'dio' => _json(fixtureJson('responses/pub_dev_package_dio.json')),
+      'meta' => _json({
+          'name': 'meta',
+          'latest': {
+            'version': '1.19.0',
+            'pubspec': {
+              'name': 'meta',
+              'repository':
+                  'https://github.com/dart-lang/sdk/tree/main/pkg/meta',
+            },
+          },
+        }),
       'http' => _json({
           'name': 'http',
           'latest': {

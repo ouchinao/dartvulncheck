@@ -30,8 +30,9 @@ class FakeApi {
 
   Set<String> forbiddenRepos = {};
 
-  /// Advisories appended to a repository's recorded list, for cases the
-  /// real data does not contain.
+  // Appended to the recorded response, not kept as hand-written fixture
+  // files: the fixtures stay real, and a synthetic case sits in the test
+  // that needs it.
   Map<String, List<Object?>> extraAdvisories = {};
 
   late final http.Client client = MockClient(handle);
@@ -181,8 +182,8 @@ Directory makeProject(Directory parent, String name, String lockFixture,
   return dir;
 }
 
-/// A repository advisory in the shape GitHub returns, for the cases the
-/// recorded fixtures do not contain.
+// In the API's own shape, not an Advisory object: the parser is part of
+// what such a test exercises.
 Map<String, Object?> repositoryAdvisoryJson(
   String ghsaId, {
   required String repo,

@@ -1,5 +1,6 @@
-// Only the Runner catches these. Layers do not turn errors into strings
-// themselves, so all the wording lives in one place.
+// Typed exceptions, not error strings: the layers that catch them (Checker,
+// the repository stage) must tell the cases apart, and the wording is decided
+// only where they are shown.
 sealed class VulncheckException implements Exception {
   const VulncheckException();
 

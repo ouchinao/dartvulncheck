@@ -13,7 +13,6 @@ String fixture(String relative) =>
 
 Object? fixtureJson(String relative) => jsonDecode(fixture(relative));
 
-/// A request seen by [FakeApi].
 class SeenRequest {
   final String method;
   final Uri url;
@@ -22,9 +21,6 @@ class SeenRequest {
   SeenRequest(this.method, this.url, this.headers, this.body);
 }
 
-/// Serves the recorded fixtures as GitHub, pub.dev and OSV would.
-///
-/// Set [githubStatus] / [osvStatus] to simulate failures.
 class FakeApi {
   final requests = <SeenRequest>[];
   int? githubStatus;
@@ -32,7 +28,6 @@ class FakeApi {
   int? osvStatus;
   int? pubDevStatus;
 
-  /// Repositories whose advisories answer 403 (private or not allowed).
   Set<String> forbiddenRepos = {};
 
   late final http.Client client = MockClient(handle);
@@ -136,7 +131,6 @@ class FakeApi {
   }
 }
 
-/// Replays recorded `flutter` / `dart` output.
 class FakeProcessRunner implements ProcessRunner {
   final Map<String, ProcessOutput?> outputs;
   final calls = <String>[];
@@ -158,7 +152,6 @@ FakeProcessRunner flutterInstalled() => FakeProcessRunner({
 
 FakeProcessRunner nothingInstalled() => FakeProcessRunner({});
 
-/// Creates a project directory with [lockFixture] as pubspec.lock.
 Directory makeProject(Directory parent, String name, String lockFixture,
     {String? pubspec}) {
   final dir = Directory(p.join(parent.path, name))..createSync(recursive: true);

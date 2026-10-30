@@ -7,7 +7,6 @@ import 'package:test/test.dart';
 
 import 'helpers.dart';
 
-/// The outcome of one in-process CLI run against [FakeApi].
 class Run {
   final int code;
   final String out;
@@ -143,7 +142,8 @@ void main() {
 
   test('--strict counts unverified advisories', () async {
     makeProject(tmp, 'app', 'pure_dart.lock');
-    // Only the unverified SDK advisory GHSA-dddd applies to a Dart 3.13.7.
+    // Dart 3.13.7 from `dart --version`, not Flutter's 3.13.5: at 3.13.5 the
+    // fixed SDK advisory would also match and exit 3 whatever --strict says.
     final processes = FakeProcessRunner({
       'dart': ProcessOutput(0, '', fixture('sdk/dart_version.txt')),
     });

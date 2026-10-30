@@ -14,8 +14,8 @@ class PubDevClient {
             '${_trim(base.path)}/api/packages/${Uri.encodeComponent(package)}');
     final response = await fetcher.get(url,
         headers: const {'Accept': 'application/json'}, sourceName: sourceName);
-    // 404 alone means "no such package"; anything else is pub.dev failing
-    // to answer, which must not read as "no repository".
+    // Only 404 is folded into null: any other error would then read as "no
+    // repository", hiding a rate-limited pub.dev.
     if (response.statusCode == 404) return null;
     if (response.statusCode != 200) {
       throw UnexpectedResponse(sourceName, 'HTTP ${response.statusCode}');

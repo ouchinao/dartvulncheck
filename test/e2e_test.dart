@@ -11,8 +11,8 @@ import 'package:test/test.dart';
 
 import 'helpers.dart';
 
-/// Runs `bin/dartvulncheck.dart` as a real process against a local HTTP
-/// server that serves the fixtures.
+// A real process, not Runner in-process: exit codes and the stdout/stderr
+// split are only proven at the process boundary.
 void main() {
   late HttpServer server;
   late FakeApi api;

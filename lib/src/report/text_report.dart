@@ -1,6 +1,7 @@
 import '../check/result.dart';
 import '../model/finding.dart';
 import '../model/package_ref.dart';
+import '../model/sdk_info.dart';
 import 'labels.dart';
 import 'summary.dart';
 
@@ -14,11 +15,11 @@ String renderText(CheckResult result) {
   switch (result.sdk) {
     case SdkChecked(:final info):
       out
-        ..writeln('${sdkLabel(info)} (${sdkOriginLabel(info.origin)})')
+        ..writeln('${_sdkLabel(info)} (${sdkOriginLabel(info.origin)})')
         ..writeln();
     case SdkFailed(:final info, :final error):
       out
-        ..writeln('${sdkLabel(info)} (${sdkOriginLabel(info.origin)})')
+        ..writeln('${_sdkLabel(info)} (${sdkOriginLabel(info.origin)})')
         ..writeln('  Could not check: ${error.message}')
         ..writeln();
     case SdkNotChecked() || SdkNotFound():
@@ -124,3 +125,10 @@ String _fixLine(Finding f) {
   }
   return '$fixed or later';
 }
+
+String _sdkLabel(SdkInfo info) => [
+      if (info.flutter != null)
+        'Flutter ${info.flutter}'
+            '${info.channel == null ? '' : ' ${info.channel}'}',
+      if (info.dart != null) 'Dart ${info.dart}',
+    ].join(' / ');

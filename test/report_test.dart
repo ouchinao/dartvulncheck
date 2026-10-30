@@ -7,8 +7,8 @@ import 'package:test/test.dart';
 
 import 'helpers.dart';
 
-/// Golden tests. Run with `UPDATE_GOLDENS=1 dart test` to rewrite them after
-/// an intended change, then review the diff.
+// Goldens, not assertions on fragments: the whole layout is the contract,
+// and a diff shows every change to it.
 void main() {
   final goldens = p.absolute('test', 'goldens');
   late Directory tmp;

@@ -1,13 +1,6 @@
 import '../model/sdk_info.dart';
 
-// Shared by the text and JSON reports, so the two never drift apart.
-String sdkLabel(SdkInfo info) => [
-      if (info.flutter != null)
-        'Flutter ${info.flutter}'
-            '${info.channel == null ? '' : ' ${info.channel}'}',
-      if (info.dart != null) 'Dart ${info.dart}',
-    ].join(' / ');
-
+// One mapping, not one per report: five strings in two places drift apart.
 String sdkOriginLabel(SdkOrigin origin) => switch (origin) {
       SdkOrigin.override => '--sdk-version',
       SdkOrigin.fvmrc => '.fvmrc',

@@ -7,8 +7,8 @@ import '../version.dart';
 import 'labels.dart';
 import 'summary.dart';
 
-// Readers check this, so bump it on any incompatible change instead of
-// changing the shape silently.
+// A version field, not silent shape changes: a reader checks it and stops
+// before misreading.
 const jsonFormatVersion = 1;
 
 String renderJson(CheckResult result) {

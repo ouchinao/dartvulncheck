@@ -17,8 +17,8 @@ class CheckOptions {
   final List<String> directories;
   final Set<String> ignore;
 
-  // Null means --no-sdk. Not a separate bool: the version override only
-  // means something when the SDK is checked.
+  // A nullable SdkCheck, not a `checkSdk` bool beside `sdkVersion`: the
+  // override only means something when the SDK is checked.
   final SdkCheck? sdk;
   final bool transitive;
 

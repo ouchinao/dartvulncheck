@@ -31,7 +31,7 @@ class SdkDetector {
       if (v == null) {
         warnings.add(SdkVersionOverrideInvalid(flutterOverride));
       } else {
-        return SdkDetection(
+        return _chosenElsewhere(
             SdkInfo(flutter: v, origin: SdkOrigin.override), warnings);
       }
     }
@@ -39,7 +39,7 @@ class SdkDetector {
     for (final dir in projectDirs) {
       final (fvm, fvmWarnings) = readFvmConfig(dir);
       warnings.addAll(fvmWarnings);
-      if (fvm != null) return SdkDetection(fvm, warnings);
+      if (fvm != null) return _chosenElsewhere(fvm, warnings);
     }
 
     final flutter = await runner.run('flutter', ['--version', '--machine']);
@@ -59,6 +59,25 @@ class SdkDetector {
 
     warnings.add(const SdkNotDetected());
     return SdkDetection(null, warnings);
+  }
+
+  // `flutter` on PATH is still asked when the version came from elsewhere,
+  // not skipped: a .fvmrc left in a checkout that flutter-action builds, or a
+  // forged one, names a version nothing builds with, and the difference is
+  // the only sign of it.
+  Future<SdkDetection> _chosenElsewhere(
+      SdkInfo chosen, List<Warning> warnings) async {
+    final mismatch = await _mismatchWithPath(chosen);
+    return SdkDetection(chosen, [...warnings, if (mismatch != null) mismatch]);
+  }
+
+  Future<Warning?> _mismatchWithPath(SdkInfo chosen) async {
+    final output = await runner.run('flutter', ['--version', '--machine']);
+    if (output == null || output.exitCode != 0) return null;
+    final onPath = parseFlutterMachineVersion(output.stdout)?.flutter;
+    if (onPath == null || onPath == chosen.flutter) return null;
+    return SdkVersionMismatch(
+        chosen: chosen.flutter!, onPath: onPath, origin: chosen.origin);
   }
 
   // FVM's pin before `flutter` on PATH: with FVM the pin is what builds.

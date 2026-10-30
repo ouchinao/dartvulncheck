@@ -33,13 +33,25 @@ void main() {
     expect(info!.flutter, Version.parse('3.47.6'));
   });
 
-  test('.fvmrc wins over flutter on PATH', () async {
+  test('.fvmrc wins over flutter on PATH, and a difference is reported',
+      () async {
     File(p.join(tmp.path, '.fvmrc')).writeAsStringSync('{"flutter": "3.47.8"}');
-    final runner = flutterInstalled();
-    final d = await SdkDetector(runner).detect(projectDirs: [tmp.path]);
+    final d =
+        await SdkDetector(flutterInstalled()).detect(projectDirs: [tmp.path]);
     expect(d.info!.flutter, Version.parse('3.47.8'));
     expect(d.info!.origin, SdkOrigin.fvmrc);
-    expect(runner.calls, isEmpty);
+    expect(
+        d.warnings.single,
+        isA<SdkVersionMismatch>()
+            .having((w) => w.onPath, 'onPath', Version.parse('3.47.6')));
+  });
+
+  test('.fvmrc that agrees with flutter on PATH raises no warning', () async {
+    File(p.join(tmp.path, '.fvmrc')).writeAsStringSync('{"flutter": "3.47.6"}');
+    final d =
+        await SdkDetector(flutterInstalled()).detect(projectDirs: [tmp.path]);
+    expect(d.info!.origin, SdkOrigin.fvmrc);
+    expect(d.warnings, isEmpty);
   });
 
   test('.fvmrc with a channel name instead of a version is ignored', () async {
@@ -65,6 +77,7 @@ void main() {
     expect(d.info!.flutter, Version.parse('3.40.0'));
     expect(d.info!.dart, isNull);
     expect(d.info!.origin, SdkOrigin.override);
+    expect(d.warnings.single, isA<SdkVersionMismatch>());
   });
 
   test('dart --version on stderr is used without Flutter', () async {

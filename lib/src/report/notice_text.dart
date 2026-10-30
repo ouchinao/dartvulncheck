@@ -1,4 +1,5 @@
 import '../model/notices.dart';
+import 'labels.dart';
 
 String describeWarning(Warning w) => switch (w) {
       SdkVersionOverrideInvalid(:final value) =>
@@ -19,6 +20,9 @@ String describeWarning(Warning w) => switch (w) {
       FellBackToOsv(:final cause) => '${cause.message}; using OSV.dev instead',
       RepositoryLookupsFailed(:final count) =>
         '$count repository advisory lookups failed (--verbose lists them)',
+      SdkVersionMismatch(:final chosen, :final onPath, :final origin) =>
+        'Flutter $chosen (${sdkOriginLabel(origin)}) was checked, but '
+            '`flutter` on PATH is $onPath',
       EndpointOverridden(:final variable, :final url) =>
         '$variable is set: requests, and the token with them, go to $url',
     };

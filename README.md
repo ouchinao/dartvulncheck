@@ -103,7 +103,7 @@ Base URLs can be overridden with `DARTVULNCHECK_GITHUB_API_URL`, `DARTVULNCHECK_
 
 ## Security
 
-[docs/threat-model.md](docs/threat-model.md) is a STRIDE review of the tool itself: what it is trusted with, where untrusted input enters, what is mitigated and what is accepted.
+[doc/threat-model.md](doc/threat-model.md) is a STRIDE review of the tool itself: what it is trusted with, where untrusted input enters, what is mitigated and what is accepted.
 
 ## Development
 

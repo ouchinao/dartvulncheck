@@ -2,7 +2,7 @@
   "version": 1,
   "tool": {
     "name": "dartvulncheck",
-    "version": "0.2.3"
+    "version": "0.3.0"
   },
   "sdk": {
     "flutter": "3.47.6",

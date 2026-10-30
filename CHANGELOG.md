@@ -1,3 +1,10 @@
+## 0.3.0
+
+- Each run asks pub.dev for the latest release of dartvulncheck and warns on
+  stderr when a newer one exists. Upgrade with the same install command and
+  the new version. A failed lookup never changes the output or the exit
+  code; `--verbose` says why it was skipped.
+
 ## 0.2.3
 
 - The install lines in the README and the example name the current version;

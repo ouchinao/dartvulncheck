@@ -365,6 +365,28 @@ void main() {
       expect(githubRepoFromUrl('https://github.com/a'), isNull);
     });
 
+    test(
+        'a repository advisory cannot speak for a package from another '
+        'repository', () async {
+      final api = FakeApi()
+        ..extraAdvisories['cfug/dio'] = [
+          repositoryAdvisoryJson('GHSA-xxxx-xxxx-xxxx',
+              repo: 'cfug/dio',
+              summary: 'Names http, which pub.dev maps to dart-lang/http',
+              vulnerabilities: [
+                vulnerabilityJson(
+                    ecosystem: 'pub', name: 'http', range: '< 99.0.0'),
+              ]),
+        ];
+      final source = RepositoryPackageSource(
+          PubDevClient(fetcherFor(api.client), base: Endpoints.defaults.pubDev),
+          RepositoryAdvisoryFetcher(githubFor(api)));
+      final result =
+          await source.query([pkg('dio', '4.0.6'), pkg('http', '0.13.2')]);
+      expect(result.advisories.map((a) => a.id),
+          isNot(contains('GHSA-xxxx-xxxx-xxxx')));
+    });
+
     test('the repository URL is latest.pubspec.repository on pub.dev',
         () async {
       final api = FakeApi();

@@ -93,11 +93,10 @@ class RepositoryPackageSource {
     final (advisoriesByRepo, fetchNotes) =
         await _fetchAdvisories(packagesByRepo.keys.toList());
 
-    final lockNames = {for (final p in packages) p.name};
     final advisories = <Advisory>[];
     for (final MapEntry(key: repo, value: list) in advisoriesByRepo.entries) {
       for (final a in list) {
-        final affected = _affectedInLock(a, lockNames, packagesByRepo[repo]!);
+        final affected = _affectedInLock(a, packagesByRepo[repo]!);
         if (affected.isNotEmpty) advisories.add(_withAffected(a, affected));
       }
     }
@@ -153,11 +152,15 @@ class RepositoryPackageSource {
     return (byRepo, notes);
   }
 
+  // A repository's advisories speak only for the packages pub.dev maps to
+  // that repository, not for any locked package they happen to name: a
+  // package's metadata can point at any repository, and one that did could
+  // otherwise publish advisories against every other package in the lock.
   static List<AffectedPackage> _affectedInLock(
-      Advisory a, Set<String> lockNames, List<String> fromRepo) {
+      Advisory a, List<String> fromRepo) {
     final affected = <AffectedPackage>[
       for (final e in a.affected)
-        if (e.hasName && _isPub(e) && lockNames.contains(e.name)) e,
+        if (e.hasName && _isPub(e) && fromRepo.contains(e.name)) e,
     ];
     // Not skipped when no package is named: it may concern any package
     // published from this repository. Not in the SDK repositories, though:

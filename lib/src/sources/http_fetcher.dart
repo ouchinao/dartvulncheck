@@ -56,31 +56,40 @@ class HttpFetcher {
   Future<http.Response> get(Uri url,
           {Map<String, String> headers = const {},
           required String sourceName}) =>
-      _send(() => client.get(url, headers: {..._baseHeaders, ...headers}),
-          sourceName);
+      _send(() => _request('GET', url, headers), sourceName);
 
   Future<http.Response> postJson(Uri url, Object body,
           {Map<String, String> headers = const {},
           required String sourceName}) =>
       _send(
-          () => client.post(url,
-              headers: {
-                ..._baseHeaders,
-                'Content-Type': 'application/json',
-                ...headers,
-              },
+          () => _request(
+              'POST', url, {'Content-Type': 'application/json', ...headers},
               body: jsonEncode(body)),
           sourceName);
 
   static const _baseHeaders = {'User-Agent': userAgent};
 
+  // Redirects are not followed: dart:io copies every header, Authorization
+  // included, onto the redirected request whatever host it names, and none
+  // of the APIs used here redirect a correct request.
+  http.Request _request(String method, Uri url, Map<String, String> headers,
+      {String? body}) {
+    final request = http.Request(method, url)
+      ..headers.addAll({..._baseHeaders, ...headers})
+      ..followRedirects = false;
+    if (body != null) request.body = body;
+    return request;
+  }
+
+  // A new Request per attempt, not one reused: a sent request's body stream
+  // is spent.
   Future<http.Response> _send(
-      Future<http.Response> Function() request, String sourceName) async {
+      http.Request Function() build, String sourceName) async {
     Object? lastError;
     for (var attempt = 0; attempt < 2; attempt++) {
       if (attempt > 0) await Future<void>.delayed(retryDelay);
       try {
-        final response = await request().timeout(timeout);
+        final response = await _read(build(), sourceName).timeout(timeout);
         if (response.statusCode >= 500) {
           lastError = 'HTTP ${response.statusCode}';
           continue;
@@ -97,6 +106,21 @@ class HttpFetcher {
       }
     }
     throw SourceUnreachable(sourceName, '$lastError');
+  }
+
+  Future<http.Response> _read(http.Request request, String sourceName) async {
+    final streamed = await client.send(request);
+    // The status code, not BaseResponse.isRedirect: that flag is left to the
+    // client implementation, and a mock never sets it.
+    if (const {301, 302, 303, 307, 308}.contains(streamed.statusCode)) {
+      final to = Uri.tryParse(streamed.headers['location'] ?? '')?.host;
+      throw UnexpectedResponse(
+          sourceName,
+          'redirected (HTTP ${streamed.statusCode}'
+          '${to == null || to.isEmpty ? '' : ' to $to'}), '
+          'which is not followed');
+    }
+    return http.Response.fromStream(streamed);
   }
 }
 

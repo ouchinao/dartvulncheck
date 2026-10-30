@@ -113,6 +113,22 @@ void main() {
           throwsA(isA<UnexpectedResponse>()));
       expect(seen.map((u) => u.host), ['api.github.com']);
     });
+
+    test('a redirect is not followed, and the message says so', () async {
+      final seen = <Uri>[];
+      final client = MockClient((req) async {
+        seen.add(req.url);
+        return http.Response('', 302,
+            headers: {'location': 'https://evil.example/'});
+      });
+      final source = GitHubGlobalSource(GitHubClient(fetcherFor(client),
+          apiBase: Endpoints.defaults.githubApi, token: 'tkn'));
+      await expectLater(
+          source.query([pkg('dio', '1.0.0')]),
+          throwsA(isA<UnexpectedResponse>().having((e) => e.message, 'message',
+              contains('redirected (HTTP 302 to evil.example)'))));
+      expect(seen, hasLength(1));
+    });
   });
 
   group('withdrawn advisories', () {

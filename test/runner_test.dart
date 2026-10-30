@@ -309,4 +309,17 @@ void main() {
     final pubspec = File('pubspec.yaml').readAsStringSync();
     expect(pubspec, contains('\nversion: $packageVersion\n'));
   });
+
+  test('the install lines in README and example name the current version', () {
+    final installLine =
+        RegExp(r'activate dartvulncheck (\S+)|--git-ref v(\S+?)[`\s]');
+    for (final path in ['README.md', 'example/README.md']) {
+      final named = [
+        for (final m in installLine.allMatches(File(path).readAsStringSync()))
+          m.group(1) ?? m.group(2),
+      ];
+      expect(named, isNotEmpty, reason: path);
+      expect(named, everyElement(packageVersion), reason: path);
+    }
+  });
 }

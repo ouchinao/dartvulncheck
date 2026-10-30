@@ -14,10 +14,15 @@ class Endpoints {
   final Uri osvApi;
   final Uri pubDev;
 
+  // Not forgotten once picked: the run says on stderr where its requests
+  // went, and a reader of a CI log should not have to guess.
+  final Map<String, Uri> overrides;
+
   const Endpoints({
     required this.githubApi,
     required this.osvApi,
     required this.pubDev,
+    this.overrides = const {},
   });
 
   static final defaults = Endpoints(
@@ -27,17 +32,34 @@ class Endpoints {
   );
 
   factory Endpoints.fromEnvironment(Map<String, String> env) {
+    final overrides = <String, Uri>{};
     Uri pick(String key, Uri fallback) {
       final v = env[key];
-      return v == null || v.isEmpty ? fallback : Uri.parse(v);
+      if (v == null || v.isEmpty) return fallback;
+      final url = Uri.tryParse(v);
+      if (url == null || url.host.isEmpty) {
+        throw InvalidEndpoint(key, v, 'not a URL');
+      }
+      // Plain http only to this machine: anywhere else the token and the
+      // answers would travel in the clear.
+      if (url.scheme != 'https' && !(url.scheme == 'http' && _loopback(url))) {
+        throw InvalidEndpoint(
+            key, v, 'not https (http is allowed for localhost only)');
+      }
+      overrides[key] = url;
+      return url;
     }
 
     return Endpoints(
       githubApi: pick('DARTVULNCHECK_GITHUB_API_URL', defaults.githubApi),
       osvApi: pick('DARTVULNCHECK_OSV_API_URL', defaults.osvApi),
       pubDev: pick('DARTVULNCHECK_PUB_URL', defaults.pubDev),
+      overrides: overrides,
     );
   }
+
+  static bool _loopback(Uri url) =>
+      url.host == 'localhost' || url.host == '127.0.0.1' || url.host == '::1';
 }
 
 class HttpFetcher {

@@ -10,6 +10,18 @@ sealed class VulncheckException implements Exception {
   String toString() => message;
 }
 
+// Its own case, not a UsageException: it is an environment variable, not an
+// argument, and printing the usage text would not point at it.
+class InvalidEndpoint extends VulncheckException {
+  final String variable;
+  final String value;
+  final String reason;
+  const InvalidEndpoint(this.variable, this.value, this.reason);
+
+  @override
+  String get message => '$variable is $reason: $value';
+}
+
 class UsageException extends VulncheckException {
   @override
   final String message;

@@ -42,6 +42,12 @@ class RepositoryLookupsFailed extends Warning {
   const RepositoryLookupsFailed(this.count);
 }
 
+class EndpointOverridden extends Warning {
+  final String variable;
+  final Uri url;
+  const EndpointOverridden(this.variable, this.url);
+}
+
 sealed class LookupNote {
   final String subject;
   const LookupNote(this.subject);

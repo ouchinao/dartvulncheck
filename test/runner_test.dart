@@ -269,6 +269,30 @@ void main() {
     expect(r.api.requests.where((q) => q.url.host == 'api.osv.dev'), isEmpty);
   });
 
+  test('an endpoint override is said out loud, and plain http is refused',
+      () async {
+    makeProject(tmp, 'app', 'app.lock');
+    final r = await run([
+      'app',
+      '--no-sdk'
+    ], env: const {
+      'GITHUB_TOKEN': 'tkn',
+      'DARTVULNCHECK_OSV_API_URL': 'https://osv.internal.example',
+    });
+    expect(r.err, contains('DARTVULNCHECK_OSV_API_URL is set'));
+    expect(r.code, ExitCodes.vulnerable);
+
+    final refused = await run([
+      'app',
+      '--no-sdk'
+    ], env: const {
+      'DARTVULNCHECK_GITHUB_API_URL': 'http://ghe.example/api/v3',
+    });
+    expect(refused.code, ExitCodes.error);
+    expect(refused.err, contains('DARTVULNCHECK_GITHUB_API_URL'));
+    expect(refused.api.requests, isEmpty);
+  });
+
   test('--help wins over every other option', () async {
     final r = await run(['--json', '--strict', '--help']);
     expect(r.code, ExitCodes.ok);

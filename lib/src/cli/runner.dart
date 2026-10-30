@@ -63,7 +63,17 @@ class Runner {
   }
 
   Future<int> _runCheck(RunCheck command) async {
-    final result = await _buildChecker(command).check(command.check);
+    final Endpoints endpoints;
+    try {
+      endpoints = Endpoints.fromEnvironment(environment);
+    } on InvalidEndpoint catch (e) {
+      err.writeln('dartvulncheck: ${e.message}');
+      return ExitCodes.error;
+    }
+    endpoints.overrides
+        .forEach((variable, url) => _warn(EndpointOverridden(variable, url)));
+
+    final result = await _buildChecker(command, endpoints).check(command.check);
     out.write(switch (command.format) {
       OutputFormat.text => renderText(result),
       OutputFormat.json => renderJson(result),
@@ -73,8 +83,7 @@ class Runner {
     return exitCodeFor(result, failOn: command.failOn, strict: command.strict);
   }
 
-  Checker _buildChecker(RunCheck command) {
-    final endpoints = Endpoints.fromEnvironment(environment);
+  Checker _buildChecker(RunCheck command, Endpoints endpoints) {
     final fetcher = HttpFetcher(client, retryDelay: retryDelay);
     final github = GitHubClient(fetcher,
         apiBase: endpoints.githubApi, token: environment['GITHUB_TOKEN']);

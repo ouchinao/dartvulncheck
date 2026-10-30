@@ -129,6 +129,22 @@ void main() {
               contains('redirected (HTTP 302 to evil.example)'))));
       expect(seen, hasLength(1));
     });
+
+    test('an endpoint override must be https, except on localhost', () {
+      expect(
+          () => Endpoints.fromEnvironment(
+              {'DARTVULNCHECK_GITHUB_API_URL': 'http://ghe.example/api/v3'}),
+          throwsA(isA<InvalidEndpoint>()));
+      expect(
+          () => Endpoints.fromEnvironment(
+              {'DARTVULNCHECK_GITHUB_API_URL': 'not a url'}),
+          throwsA(isA<InvalidEndpoint>()));
+      final local = Endpoints.fromEnvironment(
+          {'DARTVULNCHECK_PUB_URL': 'http://127.0.0.1:8080/pub'});
+      expect(local.pubDev.port, 8080);
+      expect(local.overrides.keys, ['DARTVULNCHECK_PUB_URL']);
+      expect(Endpoints.fromEnvironment(const {}).overrides, isEmpty);
+    });
   });
 
   group('withdrawn advisories', () {

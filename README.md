@@ -89,7 +89,7 @@ vulncheck:
 | Early warning | Repository security advisories (`GET /repos/{owner}/{repo}/security-advisories`) | Packages with a GitHub repository, plus `dart-lang/sdk` and `flutter/flutter` |
 | Fallback | OSV.dev (`POST /v1/querybatch`) | Used only when GitHub is unreachable or answers something that is not an advisory list. Not on rate limiting or a rejected token: those need a fix on your side |
 
-Base URLs can be overridden with `DARTVULNCHECK_GITHUB_API_URL`, `DARTVULNCHECK_OSV_API_URL` and `DARTVULNCHECK_PUB_URL` (for tests and GitHub Enterprise).
+Base URLs can be overridden with `DARTVULNCHECK_GITHUB_API_URL`, `DARTVULNCHECK_OSV_API_URL` and `DARTVULNCHECK_PUB_URL` (for tests and GitHub Enterprise). Overrides must be `https`; `http` is accepted for localhost only, and every override in effect is reported on stderr.
 
 ## Limitations
 

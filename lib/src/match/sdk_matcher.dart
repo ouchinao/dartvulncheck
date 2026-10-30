@@ -6,21 +6,14 @@ import '../model/sdk_info.dart';
 import '../model/severity.dart';
 import 'evaluate.dart';
 
-class SdkMatch {
-  final List<Finding> findings;
-  final bool dartVersionUnknown;
-  const SdkMatch(this.findings, {this.dartVersionUnknown = false});
-}
-
 // Flutter advisories are not applied to pure Dart projects: they do not
 // ship the Flutter framework.
-SdkMatch matchSdk(
+List<Finding> matchSdk(
   SdkInfo sdk,
   List<Advisory> advisories, {
   bool includeFlutter = true,
   Set<String> ignored = const {},
 }) {
-  var dartUnknown = false;
   final raw = <Finding>[];
 
   for (final advisory in advisories) {
@@ -37,10 +30,7 @@ SdkMatch matchSdk(
     for (final MapEntry(key: subject, value: entries) in bySubject.entries) {
       if (subject == 'Flutter' && !includeFlutter) continue;
       final current = subject == 'Flutter' ? sdk.flutter : sdk.dart;
-      if (current == null) {
-        if (subject == 'Dart') dartUnknown = true;
-        continue;
-      }
+      if (current == null) continue;
       final result = evaluate(current, entries);
       final FindingKind kind;
       switch (result.verdict) {
@@ -65,9 +55,15 @@ SdkMatch matchSdk(
     }
   }
 
-  return SdkMatch(applyIgnored(_mergeSdk(raw), ignored),
-      dartVersionUnknown: dartUnknown);
+  return applyIgnored(_mergeSdk(raw), ignored);
 }
+
+// Asked once per run, not reported by matchSdk per project: whether the
+// Dart version matters depends only on the advisories, and the warning
+// should appear once.
+bool hasDartAdvisories(List<Advisory> advisories) => advisories.any((a) =>
+    (a.affected.isEmpty ? const [AffectedPackage()] : a.affected)
+        .any((e) => sdkSubject(e, a.repository) == 'Dart'));
 
 String? sdkSubject(AffectedPackage e, String? repository) {
   if (!e.hasName) {

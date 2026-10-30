@@ -1,4 +1,5 @@
 import '../check/result.dart';
+import 'notice_text.dart';
 
 String renderVerbose(CheckResult result) {
   final out = StringBuffer();
@@ -12,10 +13,14 @@ String renderVerbose(CheckResult result) {
           '${counts.skippedTransitive}');
     }
     if (counts.skipped.isNotEmpty) {
-      out.writeln('  not looked up: ${counts.skipped.join(', ')}');
+      out.writeln('  not looked up: '
+          '${[
+        for (final s in counts.skipped) '${s.name} (${s.reason})'
+      ].join(', ')}');
     }
     for (final pkg in counts.thirdPartyHosted) {
-      out.writeln('  $pkg: hosted outside pub.dev; checked against '
+      out.writeln('  ${pkg.name} (${pkg.hostedUrl}): hosted outside pub.dev; '
+          'checked against '
           'advisories for the pub.dev package of the same name');
     }
     for (final f in ignored) {
@@ -25,7 +30,7 @@ String renderVerbose(CheckResult result) {
   if (result.sourceNotes.isNotEmpty) {
     out.writeln('repository advisories:');
     for (final note in result.sourceNotes) {
-      out.writeln('  $note');
+      out.writeln('  ${note.subject}: ${describeNote(note)}');
     }
   }
   return '$out';

@@ -56,3 +56,9 @@ class PackageRef {
   @override
   String toString() => '$name $version';
 }
+
+class SkippedPackage {
+  final String name;
+  final String reason;
+  const SkippedPackage(this.name, this.reason);
+}

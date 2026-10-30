@@ -3,7 +3,9 @@ import 'package:http/http.dart' as http;
 import '../check/checker.dart';
 import '../check/result.dart';
 import '../model/errors.dart';
+import '../model/notices.dart';
 import '../report/json_report.dart';
+import '../report/notice_text.dart';
 import '../report/text_report.dart';
 import '../report/verbose_report.dart';
 import '../sdk/process_runner.dart';
@@ -83,15 +85,14 @@ class Runner {
       repository = RepositoryPackageSource(
           PubDevClient(fetcher, base: endpoints.pubDev), repoFetcher);
     } else if (command.repoAdvisories) {
-      _warn('GITHUB_TOKEN is not set, so repository advisories (published '
-          'before GitHub review) were not checked');
+      _warn(const NoGitHubToken());
     }
 
     return Checker(
       packages: FallbackSource(
         GitHubGlobalSource(github),
         OsvSource(fetcher, base: endpoints.osvApi),
-        onFallback: (e) => _warn('${e.message}; using OSV.dev instead'),
+        onFallback: (e) => _warn(FellBackToOsv(e)),
       ),
       repository: repository,
       sdkAdvisories: SdkAdvisorySource(repoFetcher),
@@ -109,5 +110,6 @@ class Runner {
     }
   }
 
-  void _warn(String message) => err.writeln('dartvulncheck: warning: $message');
+  void _warn(Warning w) =>
+      err.writeln('dartvulncheck: warning: ${describeWarning(w)}');
 }

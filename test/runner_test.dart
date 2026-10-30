@@ -234,6 +234,16 @@ void main() {
     expect(r.err, contains('dartvulncheck: SDK:'));
   });
 
+  test('the repository-stage warning appears once for several projects',
+      () async {
+    makeProject(tmp, 'app', 'app.lock');
+    makeProject(tmp, 'app2', 'app.lock');
+    final api = FakeApi()..pubDevStatus = 503;
+    final r = await run(['app', 'app2', '--no-sdk'], api: api);
+    expect(
+        'repository advisory lookups failed'.allMatches(r.err), hasLength(1));
+  });
+
   test('--help wins over every other option', () async {
     final r = await run(['--json', '--strict', '--help']);
     expect(r.code, ExitCodes.ok);

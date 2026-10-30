@@ -1,5 +1,6 @@
 import '../model/errors.dart';
 import '../model/finding.dart';
+import '../model/notices.dart';
 import '../model/package_ref.dart';
 import '../model/sdk_info.dart';
 
@@ -52,9 +53,9 @@ class FailedProject extends ProjectResult {
 class PackageCounts {
   final Map<PackageSource, int> bySource;
   final int queried;
-  final List<String> skipped;
+  final List<SkippedPackage> skipped;
   final int skippedTransitive;
-  final List<String> thirdPartyHosted;
+  final List<PackageRef> thirdPartyHosted;
 
   const PackageCounts({
     required this.bySource,
@@ -73,7 +74,7 @@ class CheckResult {
 
   // Run-wide, not per project: packages shared by several projects are
   // looked up once.
-  final List<String> sourceNotes;
+  final List<LookupNote> sourceNotes;
 
   const CheckResult({
     required this.sdk,

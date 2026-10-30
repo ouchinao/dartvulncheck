@@ -59,12 +59,12 @@ class OsvSource implements AdvisorySource {
       final response = await fetcher.postJson(_url('/v1/querybatch'), body,
           sourceName: sourceName);
       if (response.statusCode != 200) {
-        throw SourceUnreachable(sourceName, 'HTTP ${response.statusCode}');
+        throw UnexpectedResponse(sourceName, 'HTTP ${response.statusCode}');
       }
       final json = decodeJson(response, sourceName);
       final results = json is Map ? json['results'] : null;
       if (results is! List || results.length != pending.length) {
-        throw const SourceUnreachable(
+        throw const UnexpectedResponse(
             sourceName, 'malformed querybatch response');
       }
       final next = <(PackageRef, String?)>[];
@@ -90,7 +90,7 @@ class OsvSource implements AdvisorySource {
         sourceName: sourceName);
     if (response.statusCode == 404) return null;
     if (response.statusCode != 200) {
-      throw SourceUnreachable(sourceName, 'HTTP ${response.statusCode}');
+      throw UnexpectedResponse(sourceName, 'HTTP ${response.statusCode}');
     }
     return parseOsvVuln(decodeJson(response, sourceName));
   }

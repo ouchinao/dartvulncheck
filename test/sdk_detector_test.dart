@@ -72,6 +72,6 @@ void main() {
     final d =
         await SdkDetector(nothingInstalled()).detect(projectDirs: [tmp.path]);
     expect(d.info, isNull);
-    expect(d.warnings.single, contains('--sdk-version'));
+    expect(d.warnings.single, isA<SdkNotDetected>());
   });
 }

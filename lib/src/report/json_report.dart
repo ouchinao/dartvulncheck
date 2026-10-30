@@ -54,7 +54,9 @@ Map<String, Object?> _project(ProjectResult p) => switch (p) {
           'packages': {
             'total': packages.total,
             'queried': packages.queried,
-            'skipped': packages.skipped,
+            'skipped': [
+              for (final s in packages.skipped) '${s.name} (${s.reason})',
+            ],
           },
           'findings': [
             for (final f in sortFindings(findings)) findingToJson(f)

@@ -104,6 +104,6 @@ Object? decodeJson(http.Response response, String sourceName) {
   try {
     return jsonDecode(utf8.decode(response.bodyBytes));
   } on FormatException {
-    throw SourceUnreachable(sourceName, 'the response is not JSON');
+    throw UnexpectedResponse(sourceName, 'the response is not JSON');
   }
 }

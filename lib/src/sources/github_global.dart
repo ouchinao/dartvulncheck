@@ -27,17 +27,9 @@ class GitHubGlobalSource implements AdvisorySource {
         'affects': chunk.map((p) => '${p.name}@${p.version}').join(','),
         'per_page': '100',
       });
-      final List<Object?>? items;
-      try {
-        items = await github.getAllPages(url);
-      } on GitHubHttpError catch (e) {
-        if (e.statusCode == 403) {
-          throw RateLimited(GitHubClient.sourceName, hasToken: github.hasToken);
-        }
-        throw SourceUnreachable(GitHubClient.sourceName, '$e');
-      }
+      final items = await github.getAllPages(url);
       if (items == null) {
-        throw const SourceUnreachable(
+        throw const UnexpectedResponse(
             GitHubClient.sourceName, '/advisories returned 404');
       }
       for (final item in items) {
@@ -62,7 +54,7 @@ class GitHubGlobalSource implements AdvisorySource {
       origin: AdvisoryOrigin.global,
       affected: [
         for (final v in (json['vulnerabilities'] as List?) ?? const [])
-          if (v is Map) githubAffected(v),
+          if (v is Map) githubAffected(v, patched: _firstPatched(v)),
       ],
     );
   }
@@ -81,16 +73,22 @@ List<String> githubAliases(Map<Object?, Object?> json, String id) {
   return out.toList();
 }
 
-AffectedPackage githubAffected(Map<Object?, Object?> v) {
+// The patched field is passed in, not guessed here: the global and the
+// repository API name it differently, and one function trying both would
+// read a field that the other API might add with another meaning.
+AffectedPackage githubAffected(Map<Object?, Object?> v,
+    {required Object? patched}) {
   final package = v['package'];
   final range = v['vulnerable_version_range'];
-  var patched = v['first_patched_version'];
-  if (patched is Map) patched = patched['identifier'];
-  patched ??= v['patched_versions'];
   return AffectedPackage(
     name: package is Map ? package['name'] as String? : null,
     ecosystem: package is Map ? package['ecosystem'] as String? : null,
     ranges: range is String && range.trim().isNotEmpty ? [range] : const [],
     patched: patched is String && patched.trim().isNotEmpty ? patched : null,
   );
+}
+
+Object? _firstPatched(Map<Object?, Object?> v) {
+  final patched = v['first_patched_version'];
+  return patched is Map ? patched['identifier'] : patched;
 }

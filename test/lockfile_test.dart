@@ -19,13 +19,13 @@ void main() {
 
     test('git, path and sdk packages are skipped with their source', () {
       expect(
-          lock.skipped.map((s) => '$s'),
+          lock.skipped.map((s) => '${s.name} (${s.reason})'),
           containsAll(
               ['flutter (sdk)', 'my_fork (git)', 'zeibun_core (path)']));
     });
 
     test('a version that is not semver is skipped, not fatal', () {
-      expect(lock.skipped.map((s) => '$s'),
+      expect(lock.skipped.map((s) => '${s.name} (${s.reason})'),
           contains('weird_version (invalid version)'));
     });
 

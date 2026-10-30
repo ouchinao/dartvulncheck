@@ -98,10 +98,48 @@ void main() {
     });
   });
 
+  group('GitHub errors', () {
+    test('403 without rate-limit signs is access denied, not rate limiting',
+        () async {
+      final api = FakeApi()..githubStatus = 403;
+      expect(
+        GitHubGlobalSource(githubFor(api)).query([pkg('dio', '1.0.0')]),
+        throwsA(isA<AccessDenied>()
+            .having((e) => e.message, 'message', contains('GITHUB_TOKEN'))),
+      );
+    });
+
+    test('a body that is not JSON is an unexpected response', () async {
+      final client = MockClient((_) async => http.Response('<html>', 200));
+      expect(
+        GitHubGlobalSource(GitHubClient(fetcherFor(client),
+                apiBase: Endpoints.defaults.githubApi))
+            .query([pkg('dio', '1.0.0')]),
+        throwsA(isA<UnexpectedResponse>()),
+      );
+    });
+  });
+
   group('fallback', () {
+    test('switches to OSV when GitHub answers with something other than JSON',
+        () async {
+      final api = FakeApi();
+      final client = MockClient((req) async => req.url.host == 'api.github.com'
+          ? http.Response('<html>proxy page</html>', 200)
+          : api.handle(req));
+      final fetcher = fetcherFor(client);
+      final source = FallbackSource(
+        GitHubGlobalSource(
+            GitHubClient(fetcher, apiBase: Endpoints.defaults.githubApi)),
+        OsvSource(fetcher, base: Endpoints.defaults.osvApi),
+      );
+      final advisories = await source.query([pkg('dio', '4.0.6')]);
+      expect(advisories.map((a) => a.id), contains('GHSA-9324-jv53-9cc8'));
+    });
+
     test('switches to OSV when GitHub returns 5xx', () async {
       final api = FakeApi()..githubStatus = 503;
-      SourceUnreachable? seen;
+      VulncheckException? seen;
       final source = FallbackSource(
         GitHubGlobalSource(githubFor(api)),
         OsvSource(fetcherFor(api.client), base: Endpoints.defaults.osvApi),
@@ -245,7 +283,10 @@ void main() {
       final unnamed = result.advisories.last;
       expect(unnamed.affected.single.name, 'dio');
       expect(unnamed.affected.single.ranges, isEmpty);
-      expect(result.notes, anyElement(contains('unknown_pkg')));
+      expect(
+          result.notes,
+          anyElement(isA<NoGitHubRepository>()
+              .having((n) => n.subject, 'subject', 'unknown_pkg')));
       expect(result.failures, 0);
     });
 

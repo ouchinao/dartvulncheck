@@ -6,15 +6,6 @@ import 'package:yaml/yaml.dart';
 import '../model/errors.dart';
 import '../model/package_ref.dart';
 
-class SkippedPackage {
-  final String name;
-  final String reason;
-  const SkippedPackage(this.name, this.reason);
-
-  @override
-  String toString() => '$name ($reason)';
-}
-
 class Lockfile {
   final String path;
   final List<PackageRef> hosted;

@@ -6,6 +6,7 @@ import '../match/sdk_matcher.dart';
 import '../model/advisory.dart';
 import '../model/errors.dart';
 import '../model/finding.dart';
+import '../model/notices.dart';
 import '../model/package_ref.dart';
 import '../sdk/sdk_detector.dart';
 import '../sources/advisory_source.dart';
@@ -41,7 +42,7 @@ class Checker {
   final RepositoryPackageSource? repository;
   final SdkAdvisorySource sdkAdvisories;
   final SdkDetector sdkDetector;
-  final void Function(String message) onWarning;
+  final void Function(Warning warning) onWarning;
 
   Checker({
     required this.packages,
@@ -57,7 +58,7 @@ class Checker {
 
     final readable = loaded.whereType<_Loaded>().toList();
     final List<Advisory> advisories;
-    final List<String> notes;
+    final List<LookupNote> notes;
     try {
       (advisories, notes) = await _fetch(readable);
     } on VulncheckException catch (e) {
@@ -70,32 +71,25 @@ class Checker {
       ]);
     }
 
-    final projects = <ProjectResult>[];
-    var dartVersionUnknown = false;
-    for (final l in loaded) {
-      switch (l) {
-        case _Unreadable(:final result):
-          projects.add(result);
-        case _Loaded():
-          final (project, dartUnknown) = _match(l, advisories, sdk, sdkList);
-          projects.add(project);
-          dartVersionUnknown |= dartUnknown;
-      }
-    }
-    if (dartVersionUnknown) {
-      onWarning('the Dart SDK version is unknown, so Dart-only SDK advisories '
-          'were not checked');
-    }
+    final projects = [
+      for (final l in loaded)
+        switch (l) {
+          _Unreadable(:final result) => result,
+          _Loaded() => _match(l, advisories, sdk, sdkList),
+        },
+    ];
     return CheckResult(sdk: sdk, projects: projects, sourceNotes: notes);
   }
 
-  (CheckedProject, bool) _match(_Loaded l, List<Advisory> advisories,
-      SdkStatus sdk, List<Advisory> sdkList) {
+  CheckedProject _match(_Loaded l, List<Advisory> advisories, SdkStatus sdk,
+      List<Advisory> sdkList) {
     final findings = matchPackages(l.targets, advisories, ignored: l.ignored);
-    if (sdk is! SdkChecked) return (_checked(l, findings), false);
-    final m = matchSdk(sdk.info, sdkList,
-        includeFlutter: l.lock.usesFlutter, ignored: l.ignored);
-    return (_checked(l, [...findings, ...m.findings]), m.dartVersionUnknown);
+    if (sdk is! SdkChecked) return _checked(l, findings);
+    return _checked(l, [
+      ...findings,
+      ...matchSdk(sdk.info, sdkList,
+          includeFlutter: l.lock.usesFlutter, ignored: l.ignored),
+    ]);
   }
 
   Future<(SdkStatus, List<Advisory>)> _checkSdk(CheckOptions options) async {
@@ -107,11 +101,16 @@ class Checker {
     detection.warnings.forEach(onWarning);
     final info = detection.info;
     if (info == null) return (const SdkNotFound(), const <Advisory>[]);
+    final List<Advisory> advisories;
     try {
-      return (SdkChecked(info), await sdkAdvisories.fetchAll());
+      advisories = await sdkAdvisories.fetchAll();
     } on VulncheckException catch (e) {
       return (SdkFailed(info, e), const <Advisory>[]);
     }
+    if (info.dart == null && hasDartAdvisories(advisories)) {
+      onWarning(const DartVersionUnknown());
+    }
+    return (SdkChecked(info), advisories);
   }
 
   _Load _load(String dir, CheckOptions options) {
@@ -137,22 +136,20 @@ class Checker {
 
   // One query for all projects, not one per project: a monorepo shares most
   // of its packages, and asking twice only spends rate limit.
-  Future<(List<Advisory>, List<String>)> _fetch(List<_Loaded> projects) async {
+  Future<(List<Advisory>, List<LookupNote>)> _fetch(
+      List<_Loaded> projects) async {
     final unique = <String, PackageRef>{
       for (final l in projects)
         for (final pkg in l.targets) '${pkg.name}@${pkg.version}': pkg,
     }.values.toList();
-    if (unique.isEmpty) return (const <Advisory>[], const <String>[]);
+    if (unique.isEmpty) return (const <Advisory>[], const <LookupNote>[]);
 
     final advisories = [...await packages.query(unique)];
     final repository = this.repository;
-    if (repository == null) return (advisories, const <String>[]);
+    if (repository == null) return (advisories, const <LookupNote>[]);
 
     final early = await repository.query(unique);
-    if (early.failures > 0) {
-      onWarning('${early.failures} repository advisory lookups failed '
-          '(--verbose lists them)');
-    }
+    if (early.failures > 0) onWarning(RepositoryLookupsFailed(early.failures));
     return ([...advisories, ...early.advisories], early.notes);
   }
 
@@ -162,11 +159,11 @@ class Checker {
         packages: PackageCounts(
           bySource: l.lock.countBySource,
           queried: l.targets.length,
-          skipped: [for (final s in l.lock.skipped) '$s'],
+          skipped: l.lock.skipped,
           skippedTransitive: l.lock.hosted.length - l.targets.length,
           thirdPartyHosted: [
             for (final pkg in l.lock.hosted)
-              if (pkg.isThirdPartyHosted) '${pkg.name} (${pkg.hostedUrl})',
+              if (pkg.isThirdPartyHosted) pkg,
           ],
         ),
         findings: findings,

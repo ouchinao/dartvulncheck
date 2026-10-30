@@ -37,12 +37,16 @@ class GitHubClient {
           await fetcher.get(url, headers: _headers, sourceName: sourceName);
       if (response.statusCode == 404) return null;
       _throwIfRateLimited(response);
+      if (response.statusCode == 403) {
+        throw AccessDenied(sourceName, response.statusCode);
+      }
       if (response.statusCode != 200) {
-        throw GitHubHttpError(response.statusCode, url);
+        throw UnexpectedResponse(sourceName, 'HTTP ${response.statusCode}');
       }
       final body = decodeJson(response, sourceName);
       if (body is! List) {
-        throw const SourceUnreachable(sourceName, 'the response is not a list');
+        throw const UnexpectedResponse(
+            sourceName, 'the response is not a list');
       }
       items.addAll(body);
       url = nextPage(response.headers['link']);
@@ -68,13 +72,4 @@ class GitHubClient {
     }
     return null;
   }
-}
-
-class GitHubHttpError implements Exception {
-  final int statusCode;
-  final Uri url;
-  const GitHubHttpError(this.statusCode, this.url);
-
-  @override
-  String toString() => 'HTTP $statusCode ($url)';
 }

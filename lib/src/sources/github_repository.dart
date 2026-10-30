@@ -1,5 +1,6 @@
 import '../model/advisory.dart';
 import '../model/errors.dart';
+import '../model/notices.dart';
 import '../model/package_ref.dart';
 import '../model/severity.dart';
 import 'github_client.dart';
@@ -19,14 +20,9 @@ class RepositoryAdvisoryFetcher {
       _cache.putIfAbsent(repo, () => _fetch(repo));
 
   Future<List<Advisory>?> _fetch(String repo) async {
-    final url = github.endpoint('/repos/$repo/security-advisories',
-        {'state': 'published', 'per_page': '100'});
-    final List<Object?>? items;
-    try {
-      items = await github.getAllPages(url);
-    } on GitHubHttpError {
-      return null;
-    }
+    final items = await github.getAllPages(github.endpoint(
+        '/repos/$repo/security-advisories',
+        {'state': 'published', 'per_page': '100'}));
     if (items == null) return null;
     return [
       for (final item in items)
@@ -51,7 +47,7 @@ class RepositoryAdvisoryFetcher {
       repository: repo,
       affected: [
         for (final v in (json['vulnerabilities'] as List?) ?? const [])
-          if (v is Map) githubAffected(v),
+          if (v is Map) githubAffected(v, patched: v['patched_versions']),
       ],
     );
   }
@@ -59,13 +55,14 @@ class RepositoryAdvisoryFetcher {
 
 class RepositoryResult {
   final List<Advisory> advisories;
-  final List<String> notes;
-  final int failures;
-  const RepositoryResult(this.advisories, this.notes, this.failures);
+  final List<LookupNote> notes;
+  const RepositoryResult(this.advisories, this.notes);
+
+  int get failures => notes.whereType<LookupFailed>().length;
 }
 
-// Not an AdvisorySource: nothing stands in for it, and it reports notes and
-// failures that the interchangeable sources do not have.
+// Not an AdvisorySource: nothing stands in for it, and it reports notes
+// that the interchangeable sources do not have.
 class RepositoryPackageSource {
   final PubDevClient pubDev;
   final RepositoryAdvisoryFetcher fetcher;
@@ -79,72 +76,80 @@ class RepositoryPackageSource {
     this.githubConcurrency = 4,
   });
 
-  // Notes and failures come back in the result, not as fields on this
-  // object: fields would carry one call's state into the next.
+  // Notes come back in the result, not as fields on this object: fields
+  // would carry one call's state into the next.
   Future<RepositoryResult> query(List<PackageRef> packages) async {
-    final notes = <String>[];
-    var failures = 0;
+    final hostedElsewhere = <LookupNote>[
+      for (final p in packages)
+        if (p.isThirdPartyHosted) HostedOutsidePubDev(p.name),
+    ];
+    final names = {
+      for (final p in packages)
+        if (!p.isThirdPartyHosted) p.name,
+    }.toList();
 
-    final lookups = <PackageRef>[];
-    for (final p in packages) {
-      if (p.isThirdPartyHosted) {
-        notes.add('${p.name}: hosted outside pub.dev, repository advisories '
-            'not checked');
-      } else {
-        lookups.add(p);
-      }
-    }
-    final names = {for (final p in lookups) p.name}.toList();
-
-    final repos = await mapPool(names, pubDevConcurrency, (name) async {
-      try {
-        final url = await pubDev.repositoryUrl(name);
-        return url == null ? null : githubRepoFromUrl(url);
-      } on SourceUnreachable catch (e) {
-        failures++;
-        notes.add('$name: ${e.message}');
-        return null;
-      }
-    });
-
-    final repoOf = <String, String>{};
-    for (var i = 0; i < names.length; i++) {
-      final repo = repos[i];
-      if (repo == null) {
-        notes.add('${names[i]}: no known GitHub repository, repository '
-            'advisories not checked');
-      } else {
-        repoOf[names[i]] = repo;
-      }
-    }
-    final byRepo = <String, List<String>>{};
-    repoOf.forEach((name, repo) => (byRepo[repo] ??= []).add(name));
-
-    final repoNames = byRepo.keys.toList();
-    final fetched = await mapPool(repoNames, githubConcurrency, (repo) async {
-      try {
-        return await fetcher.fetch(repo);
-      } on SourceUnreachable catch (e) {
-        failures++;
-        notes.add('$repo: ${e.message}');
-        return null;
-      }
-    });
+    final (packagesByRepo, repoNotes) = await _findRepositories(names);
+    final (advisoriesByRepo, fetchNotes) =
+        await _fetchAdvisories(packagesByRepo.keys.toList());
 
     final lockNames = {for (final p in packages) p.name};
-    final out = <Advisory>[];
-    for (var i = 0; i < repoNames.length; i++) {
-      final advisories = fetched[i];
-      if (advisories == null) {
-        notes.add('${repoNames[i]}: advisories could not be read');
-        continue;
-      }
-      for (final a in advisories) {
-        final affected = _affectedInLock(a, lockNames, byRepo[repoNames[i]]!);
-        if (affected.isNotEmpty) out.add(_withAffected(a, affected));
+    final advisories = <Advisory>[];
+    for (final MapEntry(key: repo, value: list) in advisoriesByRepo.entries) {
+      for (final a in list) {
+        final affected = _affectedInLock(a, lockNames, packagesByRepo[repo]!);
+        if (affected.isNotEmpty) advisories.add(_withAffected(a, affected));
       }
     }
-    return RepositoryResult(out, notes, failures);
+    return RepositoryResult(
+        advisories, [...hostedElsewhere, ...repoNotes, ...fetchNotes]);
+  }
+
+  Future<(Map<String, List<String>>, List<LookupNote>)> _findRepositories(
+      List<String> names) async {
+    final found = await mapPool(names, pubDevConcurrency, (name) async {
+      try {
+        final url = await pubDev.repositoryUrl(name);
+        final repo = url == null ? null : githubRepoFromUrl(url);
+        return (repo, repo == null ? NoGitHubRepository(name) : null);
+      } on RateLimited {
+        rethrow;
+      } on VulncheckException catch (e) {
+        return (null, LookupFailed(name, e));
+      }
+    });
+
+    final byRepo = <String, List<String>>{};
+    final notes = <LookupNote>[];
+    for (final (i, (repo, note)) in found.indexed) {
+      if (repo != null) (byRepo[repo] ??= []).add(names[i]);
+      if (note != null) notes.add(note);
+    }
+    return (byRepo, notes);
+  }
+
+  Future<(Map<String, List<Advisory>>, List<LookupNote>)> _fetchAdvisories(
+      List<String> repos) async {
+    final fetched = await mapPool(repos, githubConcurrency, (repo) async {
+      try {
+        final advisories = await fetcher.fetch(repo);
+        return (
+          advisories,
+          advisories == null ? RepositoryUnreadable(repo) : null,
+        );
+      } on RateLimited {
+        rethrow;
+      } on VulncheckException catch (e) {
+        return (null, LookupFailed(repo, e));
+      }
+    });
+
+    final byRepo = <String, List<Advisory>>{};
+    final notes = <LookupNote>[];
+    for (final (i, (advisories, note)) in fetched.indexed) {
+      if (advisories != null) byRepo[repos[i]] = advisories;
+      if (note != null) notes.add(note);
+    }
+    return (byRepo, notes);
   }
 
   static List<AffectedPackage> _affectedInLock(
@@ -197,8 +202,8 @@ class SdkAdvisorySource {
     for (final repo in repositories) {
       final advisories = await fetcher.fetch(repo);
       if (advisories == null) {
-        throw SourceUnreachable(
-            GitHubClient.sourceName, 'cannot read the advisories of $repo');
+        throw UnexpectedResponse(
+            GitHubClient.sourceName, 'the advisories of $repo returned 404');
       }
       out.addAll(advisories);
     }

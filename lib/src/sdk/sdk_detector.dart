@@ -4,12 +4,13 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:pub_semver/pub_semver.dart';
 
+import '../model/notices.dart';
 import '../model/sdk_info.dart';
 import 'process_runner.dart';
 
 class SdkDetection {
   final SdkInfo? info;
-  final List<String> warnings;
+  final List<Warning> warnings;
   const SdkDetection(this.info, [this.warnings = const []]);
 }
 
@@ -23,12 +24,12 @@ class SdkDetector {
     String? flutterOverride,
     List<String> projectDirs = const ['.'],
   }) async {
-    final warnings = <String>[];
+    final warnings = <Warning>[];
 
     if (flutterOverride != null) {
       final v = _parseVersion(flutterOverride);
       if (v == null) {
-        warnings.add('--sdk-version "$flutterOverride" is not a version');
+        warnings.add(SdkVersionOverrideInvalid(flutterOverride));
       } else {
         return SdkDetection(
             SdkInfo(flutter: v, origin: '--sdk-version'), warnings);
@@ -44,7 +45,7 @@ class SdkDetector {
     if (flutter != null && flutter.exitCode == 0) {
       final info = parseFlutterMachineVersion(flutter.stdout);
       if (info != null) return SdkDetection(info, warnings);
-      warnings.add('cannot read the output of `flutter --version --machine`');
+      warnings.add(const FlutterVersionUnreadable());
     }
 
     final dart = await runner.run('dart', ['--version']);
@@ -55,8 +56,7 @@ class SdkDetector {
       if (info != null) return SdkDetection(info, warnings);
     }
 
-    warnings.add('the Flutter/Dart SDK version is unknown, so the SDK was '
-        'not checked. Without `flutter` on PATH, pass it with --sdk-version');
+    warnings.add(const SdkNotDetected());
     return SdkDetection(null, warnings);
   }
 

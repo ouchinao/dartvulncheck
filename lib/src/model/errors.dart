@@ -55,3 +55,26 @@ class RateLimited extends VulncheckException {
       : '$source rate limit reached (60 requests/hour without a token). '
           'Set GITHUB_TOKEN to raise it to 1,000/hour';
 }
+
+// Not folded into RateLimited: a 403 without rate-limit signs means the
+// token lacks access, and telling the user to wait would not help.
+class AccessDenied extends VulncheckException {
+  final String source;
+  final int statusCode;
+  const AccessDenied(this.source, this.statusCode);
+
+  @override
+  String get message => '$source refused access (HTTP $statusCode). '
+      'Check GITHUB_TOKEN and what it is allowed to read';
+}
+
+// Not SourceUnreachable: the server answered, so retrying the same request
+// is not the fix, though falling back to another source still is.
+class UnexpectedResponse extends VulncheckException {
+  final String source;
+  final String reason;
+  const UnexpectedResponse(this.source, this.reason);
+
+  @override
+  String get message => 'unexpected response from $source: $reason';
+}

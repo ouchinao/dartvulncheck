@@ -160,7 +160,7 @@ void main() {
           affects('Dart SDK', '< 3.13.7', '3.13.7'),
         ]),
       ]);
-      final f = m.findings.single;
+      final f = m.single;
       expect(f.subject, 'Flutter');
       expect(f.kind, FindingKind.sdk);
       expect(f.fixed, Version.parse('3.47.8'));
@@ -178,8 +178,8 @@ void main() {
             repository: 'flutter/flutter',
             affected: [affects('flutter', '< 3.47.8', '3.47.8')]),
       ]);
-      expect(m.findings.single.subject, 'Flutter');
-      expect(m.findings.single.allIds, {'GHSA-A', 'GHSA-B'});
+      expect(m.single.subject, 'Flutter');
+      expect(m.single.allIds, {'GHSA-A', 'GHSA-B'});
     });
 
     test('a beta channel build is matched', () {
@@ -190,14 +190,14 @@ void main() {
             repository: 'flutter/flutter',
             affected: [affects('flutter', '< 3.50.0', '3.50.0')]),
       ]);
-      expect(m.findings.single.current, Version.parse('3.50.0-0.2.pre'));
+      expect(m.single.current, Version.parse('3.50.0-0.2.pre'));
     });
 
     test('an SDK advisory with no structured range is sdkUnverified', () {
       final m =
           matchSdk(sdk, [advisory('GHSA-1', repository: 'dart-lang/sdk')]);
-      expect(m.findings.single.kind, FindingKind.sdkUnverified);
-      expect(m.findings.single.subject, 'Dart');
+      expect(m.single.kind, FindingKind.sdkUnverified);
+      expect(m.single.subject, 'Dart');
     });
 
     test('Flutter advisories do not apply to a pure Dart project', () {
@@ -210,21 +210,21 @@ void main() {
         ],
         includeFlutter: false,
       );
-      expect(m.findings, isEmpty);
+      expect(m, isEmpty);
     });
 
     test(
         'with only the Flutter version known, Dart-only advisories are '
-        'skipped and reported', () {
+        'skipped, and the advisories show the Dart version was needed', () {
       final flutterOnly =
           SdkInfo(flutter: Version.parse('3.47.6'), origin: 'test');
-      final m = matchSdk(flutterOnly, [
+      final advisories = [
         advisory('GHSA-1',
             repository: 'dart-lang/sdk',
             affected: [affects('Dart SDK', '< 3.13.7')]),
-      ]);
-      expect(m.findings, isEmpty);
-      expect(m.dartVersionUnknown, isTrue);
+      ];
+      expect(matchSdk(flutterOnly, advisories), isEmpty);
+      expect(hasDartAdvisories(advisories), isTrue);
     });
 
     test('a package that lives in the SDK repo is not the SDK', () {
@@ -233,7 +233,7 @@ void main() {
             repository: 'flutter/flutter',
             affected: [affects('flutter_tools', '< 9.0.0')]),
       ]);
-      expect(m.findings, isEmpty);
+      expect(m, isEmpty);
     });
   });
 

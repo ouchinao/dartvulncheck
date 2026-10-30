@@ -80,7 +80,7 @@ scope** (not this tool's problem to solve).
 | E1 | On Windows, a `flutter.bat` or `dart.bat` committed to the project runs with the rights of whoever runs the check, because cmd.exe looks in the current directory before `PATH`. | mitigated | The executable is located on `PATH` first and started by its full path. A name on no `PATH` entry counts as not installed. |
 | E2 | Input reaches a command line. | mitigated by construction | The only processes started are `flutter --version --machine` and `dart --version`, with fixed arguments; no shell on POSIX. |
 | E3 | The tool changes the machine. | mitigated by construction | It writes no files and keeps no cache. |
-| E4 | The CI token is more powerful than needed. | mitigated | The workflows in this repository request `contents: read`; advisories are readable with that. |
+| E4 | The CI token is more powerful than needed. | mitigated | The workflows in this repository request `contents: read`; advisories are readable with that. The publish workflow adds `id-token: write`: a short-lived OpenID Connect token that pub.dev accepts only from this repository and tag pattern, in place of a stored credential. |
 
 ## What users should still do
 

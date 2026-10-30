@@ -35,7 +35,7 @@ class SdkCheck {
 }
 
 // Sources are passed in, not built here, so tests and the CLI decide what
-// talks to the network. `repository` is null when that stage is off.
+// talks to the network.
 class Checker {
   final AdvisorySource packages;
   final RepositoryPackageSource? repository;
@@ -70,31 +70,32 @@ class Checker {
       ]);
     }
 
-    var dartUnknownWarned = false;
     final projects = <ProjectResult>[];
+    var dartVersionUnknown = false;
     for (final l in loaded) {
-      if (l case _Unreadable(:final result)) {
-        projects.add(result);
-        continue;
+      switch (l) {
+        case _Unreadable(:final result):
+          projects.add(result);
+        case _Loaded():
+          final (project, dartUnknown) = _match(l, advisories, sdk, sdkList);
+          projects.add(project);
+          dartVersionUnknown |= dartUnknown;
       }
-      l as _Loaded;
-      final findings = [
-        ...matchPackages(l.targets, advisories, ignored: l.ignored),
-      ];
-      if (sdk is SdkChecked) {
-        final m = matchSdk(sdk.info, sdkList,
-            includeFlutter: l.lock.usesFlutter, ignored: l.ignored);
-        findings.addAll(m.findings);
-        if (m.dartVersionUnknown && !dartUnknownWarned) {
-          dartUnknownWarned = true;
-          onWarning(
-              'the Dart SDK version is unknown, so Dart-only SDK advisories '
-              'were not checked');
-        }
-      }
-      projects.add(_checked(l, findings));
+    }
+    if (dartVersionUnknown) {
+      onWarning('the Dart SDK version is unknown, so Dart-only SDK advisories '
+          'were not checked');
     }
     return CheckResult(sdk: sdk, projects: projects, sourceNotes: notes);
+  }
+
+  (CheckedProject, bool) _match(_Loaded l, List<Advisory> advisories,
+      SdkStatus sdk, List<Advisory> sdkList) {
+    final findings = matchPackages(l.targets, advisories, ignored: l.ignored);
+    if (sdk is! SdkChecked) return (_checked(l, findings), false);
+    final m = matchSdk(sdk.info, sdkList,
+        includeFlutter: l.lock.usesFlutter, ignored: l.ignored);
+    return (_checked(l, [...findings, ...m.findings]), m.dartVersionUnknown);
   }
 
   Future<(SdkStatus, List<Advisory>)> _checkSdk(CheckOptions options) async {

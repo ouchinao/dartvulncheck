@@ -49,7 +49,7 @@ class SdkDetector {
 
     final dart = await runner.run('dart', ['--version']);
     if (dart != null && dart.exitCode == 0) {
-      // Older SDKs print to stderr, newer ones to stdout.
+      // Both streams, not only stderr: newer SDKs print to stdout.
       final info =
           parseDartVersion(dart.stderr) ?? parseDartVersion(dart.stdout);
       if (info != null) return SdkDetection(info, warnings);

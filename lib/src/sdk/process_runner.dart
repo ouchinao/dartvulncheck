@@ -24,7 +24,8 @@ class SystemProcessRunner implements ProcessRunner {
         executable,
         arguments,
         workingDirectory: workingDirectory,
-        // `flutter` and `dart` are .bat files on Windows.
+        // A shell only on Windows, where `flutter` and `dart` are .bat files;
+        // elsewhere it would only add quoting to get wrong.
         runInShell: Platform.isWindows,
         stdoutEncoding: utf8,
         stderrEncoding: utf8,

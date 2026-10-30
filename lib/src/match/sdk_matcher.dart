@@ -116,8 +116,8 @@ List<Finding> _mergeSdk(List<Finding> raw) {
 Finding _pickSdk(List<Finding> group) {
   int score(Finding f) =>
       (f.kind.isUnverified ? 0 : 2) + (f.subject == 'Flutter' ? 1 : 0);
-  // First highest score wins, so the order advisories arrived in decides
-  // ties (dart-lang/sdk is fetched before flutter/flutter).
+  // A first-max loop, not List.sort: sort is not stable, so ties would be
+  // decided at random instead of by arrival (dart-lang/sdk first).
   var main = group.first;
   for (final f in group.skip(1)) {
     if (score(f) > score(main)) main = f;

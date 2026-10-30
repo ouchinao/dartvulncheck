@@ -1,0 +1,22 @@
+# On a release tag, not on every push to main: what pub.dev receives is
+# then exactly what the tag holds. No stored credential: the job presents
+# a short-lived OpenID Connect token, which pub.dev accepts only from this
+# repository and tag pattern (package admin page), so there is no secret
+# here to leak.
+name: Publish to pub.dev
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+jobs:
+  publish:
+    permissions:
+      id-token: write
+    uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
+    with:
+      # The pub.dev environment, not the default: pub.dev refuses a token
+      # minted outside it, and the environment's own rules can limit which
+      # tags reach it.
+      environment: pub.dev

@@ -38,7 +38,7 @@ class GitHubGlobalSource implements AdvisorySource {
       }
       if (items == null) {
         throw const SourceUnreachable(
-            GitHubClient.sourceName, '/advisories が 404 を返しました');
+            GitHubClient.sourceName, '/advisories returned 404');
       }
       for (final item in items) {
         final advisory = parseGlobalAdvisory(item);

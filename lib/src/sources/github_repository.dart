@@ -88,8 +88,8 @@ class RepositoryPackageSource {
     final lookups = <PackageRef>[];
     for (final p in packages) {
       if (p.isThirdPartyHosted) {
-        notes.add('${p.name}: pub.dev 以外でホストされているので'
-            'リポジトリアドバイザリを見ていません');
+        notes.add('${p.name}: hosted outside pub.dev, repository advisories '
+            'not checked');
       } else {
         lookups.add(p);
       }
@@ -111,8 +111,8 @@ class RepositoryPackageSource {
     for (var i = 0; i < names.length; i++) {
       final repo = repos[i];
       if (repo == null) {
-        notes.add('${names[i]}: リポジトリが GitHub に無いか不明なので'
-            'リポジトリアドバイザリを見ていません');
+        notes.add('${names[i]}: no known GitHub repository, repository '
+            'advisories not checked');
       } else {
         repoOf[names[i]] = repo;
       }
@@ -136,7 +136,7 @@ class RepositoryPackageSource {
     for (var i = 0; i < repoNames.length; i++) {
       final advisories = fetched[i];
       if (advisories == null) {
-        notes.add('${repoNames[i]}: アドバイザリを読めませんでした');
+        notes.add('${repoNames[i]}: advisories could not be read');
         continue;
       }
       for (final a in advisories) {
@@ -197,7 +197,8 @@ class SdkAdvisorySource {
     for (final repo in repositories) {
       final advisories = await fetcher.fetch(repo);
       if (advisories == null) {
-        throw SourceUnreachable(GitHubClient.sourceName, '$repo のアドバイザリを読めません');
+        throw SourceUnreachable(
+            GitHubClient.sourceName, 'cannot read the advisories of $repo');
       }
       out.addAll(advisories);
     }

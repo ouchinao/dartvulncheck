@@ -42,7 +42,7 @@ List<Finding> matchPackages(
         case Verdict.vulnerable:
           kind = FindingKind.package;
         case Verdict.unreadable:
-          // Not 要確認: the server already matched the version.
+          // Not unverified: the server already matched the version.
           kind = advisory.origin.serverMatched
               ? FindingKind.package
               : FindingKind.packageUnverified;

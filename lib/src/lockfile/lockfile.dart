@@ -46,11 +46,11 @@ Lockfile readLockfile(String path) {
 Lockfile parseLockfile(String content, {required String path}) {
   final root = _loadYaml(content, path);
   if (root is! Map) {
-    throw LockfileUnreadable(path, 'トップレベルがマップではありません');
+    throw LockfileUnreadable(path, 'the top level is not a map');
   }
   final packages = root['packages'] ?? const {};
   if (packages is! Map) {
-    throw LockfileUnreadable(path, '`packages:` がマップではありません',
+    throw LockfileUnreadable(path, '`packages:` is not a map',
         line: _lineOf(packages));
   }
 
@@ -62,7 +62,7 @@ Lockfile parseLockfile(String content, {required String path}) {
     final name = '${entry.key}';
     final value = entry.value;
     if (value is! Map) {
-      throw LockfileUnreadable(path, 'パッケージ $name の形が不正です',
+      throw LockfileUnreadable(path, 'package $name is malformed',
           line: _lineOf(value));
     }
     final source = PackageSource.parse(value['source']);
@@ -121,7 +121,7 @@ Set<String> readIgnoredAdvisories(String path) {
   final ignored = root['ignored_advisories'];
   if (ignored == null) return const {};
   if (ignored is! List) {
-    throw LockfileUnreadable(path, '`ignored_advisories:` はリストで書いてください',
+    throw LockfileUnreadable(path, '`ignored_advisories:` must be a list',
         line: _lineOf(ignored));
   }
   return {for (final id in ignored) '$id'.trim().toUpperCase()};

@@ -13,7 +13,7 @@ class AffectedPackage {
   final String? ecosystem;
 
   // Kept as text, not parsed here: match/ turns an unreadable range into
-  // 要確認 instead of the source silently dropping it.
+  // unverified instead of the source silently dropping it.
   final List<String> ranges;
   final String? patched;
 

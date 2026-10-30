@@ -26,7 +26,7 @@ SdkMatch matchSdk(
   for (final advisory in advisories) {
     final bySubject = <String, List<AffectedPackage>>{};
     // Not skipped when vulnerabilities[] is empty: it still concerns the SDK
-    // of its repository, as 要確認.
+    // of its repository, as unverified.
     final entries = advisory.affected.isEmpty
         ? const [AffectedPackage()]
         : advisory.affected;

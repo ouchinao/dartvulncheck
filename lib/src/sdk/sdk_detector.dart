@@ -28,7 +28,7 @@ class SdkDetector {
     if (flutterOverride != null) {
       final v = _parseVersion(flutterOverride);
       if (v == null) {
-        warnings.add('--sdk-version "$flutterOverride" を版として読めません');
+        warnings.add('--sdk-version "$flutterOverride" is not a version');
       } else {
         return SdkDetection(
             SdkInfo(flutter: v, origin: '--sdk-version'), warnings);
@@ -44,7 +44,7 @@ class SdkDetector {
     if (flutter != null && flutter.exitCode == 0) {
       final info = parseFlutterMachineVersion(flutter.stdout);
       if (info != null) return SdkDetection(info, warnings);
-      warnings.add('`flutter --version --machine` の出力を読めません');
+      warnings.add('cannot read the output of `flutter --version --machine`');
     }
 
     final dart = await runner.run('dart', ['--version']);
@@ -55,8 +55,8 @@ class SdkDetector {
       if (info != null) return SdkDetection(info, warnings);
     }
 
-    warnings.add('Flutter/Dart SDK の版が分からないので SDK の照合を飛ばしました。'
-        '`flutter` が PATH に無い場合は --sdk-version で渡せます');
+    warnings.add('the Flutter/Dart SDK version is unknown, so the SDK was '
+        'not checked. Without `flutter` on PATH, pass it with --sdk-version');
     return SdkDetection(null, warnings);
   }
 

@@ -1,39 +1,39 @@
-app/pubspec.lock  9 packages（hosted 6、git 1、path 1、sdk 1）
-Flutter 3.47.6 stable / Dart 3.13.5（flutter --version）
+app/pubspec.lock  9 packages (hosted 6, git 1, path 1, sdk 1)
+Flutter 3.47.6 stable / Dart 3.13.5 (flutter --version)
 
 SDK
   GHSA-frr6-h895-5pxp  Flutter 3.47.6  HIGH  TLS MitM via compromised eMudhra intermediate CA certificates
-    修正: Flutter 3.47.8（Dart 3.13.7）に上げてビルドし直す
+    Fix: upgrade to Flutter 3.47.8 (Dart 3.13.7) and rebuild
     https://github.com/dart-lang/sdk/security/advisories/GHSA-frr6-h895-5pxp
-  GHSA-dddd-eeee-ffff  Dart 3.13.5  要確認  Dart SDK issue without structured ranges
-    要確認: 影響する版の範囲が書かれていないので版で判定できません。本文を確認し、該当しなければ ignored_advisories に加えてください
-    修正: 修正版なし
+  GHSA-dddd-eeee-ffff  Dart 3.13.5  UNVERIFIED  Dart SDK issue without structured ranges
+    Unverified: the advisory gives no affected range, so the version cannot decide. Read it, and add it to ignored_advisories if it does not apply
+    Fix: no fixed version yet
     https://github.com/dart-lang/sdk/security/advisories/GHSA-dddd-eeee-ffff
 
-パッケージ
-  GHSA-zzzz-yyyy-xxxx  dio 4.0.6（直接）  CRITICAL  dio: unreviewed issue published by maintainers
-    修正: 4.0.7 以上
+Packages
+  GHSA-zzzz-yyyy-xxxx  dio 4.0.6 (direct)  CRITICAL  dio: unreviewed issue published by maintainers
+    Fix: 4.0.7 or later
     https://github.com/cfug/dio/security/advisories/GHSA-zzzz-yyyy-xxxx
-  GHSA-9324-jv53-9cc8  dio 4.0.6（直接）  HIGH  dio vulnerable to CRLF injection with HTTP method string
-    修正: 5.0.0 以上
+  GHSA-9324-jv53-9cc8  dio 4.0.6 (direct)  HIGH  dio vulnerable to CRLF injection with HTTP method string
+    Fix: 5.0.0 or later
     https://github.com/advisories/GHSA-9324-jv53-9cc8
-  GHSA-4rgh-jx4f-qfcq  http 0.13.2（推移的）  MODERATE  http before 0.13.3 vulnerable to header injection
-    修正: 0.13.3 以上。推移的な依存なので、親を更新するか dependency_overrides で上げる
+  GHSA-4rgh-jx4f-qfcq  http 0.13.2 (transitive)  MODERATE  http before 0.13.3 vulnerable to header injection
+    Fix: 0.13.3 or later. It is transitive: upgrade the package that depends on it, or use dependency_overrides
     https://github.com/advisories/GHSA-4rgh-jx4f-qfcq
-  GHSA-qqqq-rrrr-ssss  dio 4.0.6（直接）  要確認  Advisory that names no package
-    要確認: 影響する版の範囲が書かれていないので版で判定できません。本文を確認し、該当しなければ ignored_advisories に加えてください
-    修正: 修正版なし
+  GHSA-qqqq-rrrr-ssss  dio 4.0.6 (direct)  UNVERIFIED  Advisory that names no package
+    Unverified: the advisory gives no affected range, so the version cannot decide. Read it, and add it to ignored_advisories if it does not apply
+    Fix: no fixed version yet
     https://github.com/cfug/dio/security/advisories/GHSA-qqqq-rrrr-ssss
 
-packages/zeibun_core/pubspec.lock  1 packages
+packages/zeibun_core/pubspec.lock  1 package
 
 SDK
   GHSA-frr6-h895-5pxp  Dart 3.13.5  HIGH  TLS MitM via compromised eMudhra intermediate CA certificates
-    修正: Dart 3.13.7 に上げてビルドし直す
+    Fix: upgrade to Dart 3.13.7 and rebuild
     https://github.com/dart-lang/sdk/security/advisories/GHSA-frr6-h895-5pxp
-  GHSA-dddd-eeee-ffff  Dart 3.13.5  要確認  Dart SDK issue without structured ranges
-    要確認: 影響する版の範囲が書かれていないので版で判定できません。本文を確認し、該当しなければ ignored_advisories に加えてください
-    修正: 修正版なし
+  GHSA-dddd-eeee-ffff  Dart 3.13.5  UNVERIFIED  Dart SDK issue without structured ranges
+    Unverified: the advisory gives no affected range, so the version cannot decide. Read it, and add it to ignored_advisories if it does not apply
+    Fix: no fixed version yet
     https://github.com/dart-lang/sdk/security/advisories/GHSA-dddd-eeee-ffff
 
-4 件（SDK 1、パッケージ 3）、無視 0、要確認 2
+4 findings (SDK 1, packages 3), 0 ignored, 2 unverified

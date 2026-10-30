@@ -11,8 +11,8 @@ String renderText(CheckResult result) {
   final sdk = result.sdk;
   if (sdk is SdkFailed) {
     out
-      ..writeln('SDK（${sdk.info}）')
-      ..writeln('  調べられませんでした: ${sdk.error.message}')
+      ..writeln('SDK (${sdk.info})')
+      ..writeln('  Could not check: ${sdk.error.message}')
       ..writeln();
   }
 
@@ -22,11 +22,11 @@ String renderText(CheckResult result) {
       case FailedProject(:final lockPath, :final error):
         out
           ..writeln(lockPath)
-          ..writeln('  調べられませんでした: ${error.message}');
+          ..writeln('  Could not check: ${error.message}');
       case CheckedProject():
         out.writeln(_header(project));
         if (!sdkLinePrinted && sdk is SdkChecked) {
-          out.writeln('${sdk.info}（${sdk.info.origin}）');
+          out.writeln('${sdk.info} (${sdk.info.origin})');
           sdkLinePrinted = true;
         }
         _writeFindings(out, project.findings);
@@ -37,22 +37,23 @@ String renderText(CheckResult result) {
   out
     ..writeln()
     ..writeln([
-      '${s.findings} 件（SDK ${s.sdk}、パッケージ ${s.packages}）',
-      '無視 ${s.ignored}',
-      if (s.unverified > 0) '要確認 ${s.unverified}',
-    ].join('、'));
+      '${s.findings} ${s.findings == 1 ? 'finding' : 'findings'} '
+          '(SDK ${s.sdk}, packages ${s.packages})',
+      '${s.ignored} ignored',
+      if (s.unverified > 0) '${s.unverified} unverified',
+    ].join(', '));
   return out.toString();
 }
 
 void _writeFindings(StringBuffer out, List<Finding> findings) {
   final visible = sortFindings(findings.where((f) => !f.ignored));
   if (visible.isEmpty) {
-    out.writeln('  問題なし');
+    out.writeln('  No problems found');
     return;
   }
   for (final (title, group) in [
     ('SDK', visible.where((f) => f.kind.isSdk)),
-    ('パッケージ', visible.where((f) => !f.kind.isSdk)),
+    ('Packages', visible.where((f) => !f.kind.isSdk)),
   ]) {
     if (group.isEmpty) continue;
     out
@@ -70,49 +71,51 @@ String _header(CheckedProject project) {
   final hosted = counts[PackageSource.hosted] ?? 0;
   final detail = hosted == total
       ? ''
-      : '（${[
+      : ' (${[
           'hosted $hosted',
           for (final s in PackageSource.values)
             if (s != PackageSource.hosted && (counts[s] ?? 0) > 0)
               '${s.name} ${counts[s]}',
-        ].join('、')}）';
-  return '${project.lockPath}  $total packages$detail';
+        ].join(', ')})';
+  final noun = total == 1 ? 'package' : 'packages';
+  return '${project.lockPath}  $total $noun$detail';
 }
 
 void _writeFinding(StringBuffer out, Finding f) {
   final dep =
-      f.dependency == null ? '' : '（${_dependencyLabel(f.dependency!)}）';
-  final severity = f.kind.isUnverified ? '要確認' : f.severity.name.toUpperCase();
+      f.dependency == null ? '' : ' (${_dependencyLabel(f.dependency!)})';
+  final severity =
+      f.kind.isUnverified ? 'UNVERIFIED' : f.severity.name.toUpperCase();
   out.writeln(
       '  ${f.id}  ${f.subject} ${f.current}$dep  $severity  ${f.summary}');
   if (f.kind.isUnverified) {
-    out.writeln('    要確認: 影響する版の範囲が書かれていないので版で判定できません。'
-        '本文を確認し、該当しなければ ignored_advisories に加えてください');
+    out.writeln('    Unverified: the advisory gives no affected range, so the '
+        'version cannot decide. Read it, and add it to ignored_advisories '
+        'if it does not apply');
   }
   out
-    ..writeln('    修正: ${_fixLine(f)}')
+    ..writeln('    Fix: ${_fixLine(f)}')
     ..writeln('    ${f.url}');
 }
 
 String _dependencyLabel(Dependency d) => switch (d) {
-      Dependency.directMain => '直接',
-      Dependency.directDev => '直接 dev',
+      Dependency.directMain => 'direct',
+      Dependency.directDev => 'direct dev',
       Dependency.directOverridden => 'override',
-      Dependency.transitive => '推移的',
+      Dependency.transitive => 'transitive',
     };
 
 String _fixLine(Finding f) {
   final fixed = f.fixed;
-  if (fixed == null) return '修正版なし';
+  if (fixed == null) return 'no fixed version yet';
   if (f.kind.isSdk) {
     final also = f.alsoFixedIn.entries.map((e) => '${e.key} ${e.value}');
-    final version = also.isEmpty
-        ? '${f.subject} $fixed '
-        : '${f.subject} $fixed（${also.join('、')}）';
-    return '$versionに上げてビルドし直す';
+    final suffix = also.isEmpty ? '' : ' (${also.join(', ')})';
+    return 'upgrade to ${f.subject} $fixed$suffix and rebuild';
   }
   if (f.dependency == Dependency.transitive) {
-    return '$fixed 以上。推移的な依存なので、親を更新するか dependency_overrides で上げる';
+    return '$fixed or later. It is transitive: upgrade the package that '
+        'depends on it, or use dependency_overrides';
   }
-  return '$fixed 以上';
+  return '$fixed or later';
 }

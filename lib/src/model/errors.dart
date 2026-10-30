@@ -21,7 +21,7 @@ class LockfileNotFound extends VulncheckException {
 
   @override
   String get message =>
-      '$path がありません。先に `dart pub get`（Flutter なら `flutter pub get`）を実行してください';
+      '$path not found. Run `dart pub get` (or `flutter pub get`) first';
 }
 
 class LockfileUnreadable extends VulncheckException {
@@ -32,7 +32,7 @@ class LockfileUnreadable extends VulncheckException {
 
   @override
   String get message =>
-      '${line == null ? path : '$path:$line'} を読めません: $reason';
+      'cannot read ${line == null ? path : '$path:$line'}: $reason';
 }
 
 class SourceUnreachable extends VulncheckException {
@@ -41,7 +41,7 @@ class SourceUnreachable extends VulncheckException {
   const SourceUnreachable(this.source, this.reason);
 
   @override
-  String get message => '$source に接続できません: $reason';
+  String get message => 'cannot reach $source: $reason';
 }
 
 class RateLimited extends VulncheckException {
@@ -51,7 +51,7 @@ class RateLimited extends VulncheckException {
 
   @override
   String get message => hasToken
-      ? '$source のレート制限に達しました。しばらく待ってから再実行してください'
-      : '$source のレート制限に達しました（未認証は 60 回/時）。'
-          '環境変数 GITHUB_TOKEN を設定すると 1,000 回/時になります';
+      ? '$source rate limit reached. Wait a while and run again'
+      : '$source rate limit reached (60 requests/hour without a token). '
+          'Set GITHUB_TOKEN to raise it to 1,000/hour';
 }

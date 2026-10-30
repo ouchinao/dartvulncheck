@@ -64,7 +64,8 @@ class OsvSource implements AdvisorySource {
       final json = decodeJson(response, sourceName);
       final results = json is Map ? json['results'] : null;
       if (results is! List || results.length != pending.length) {
-        throw const SourceUnreachable(sourceName, 'querybatch の応答の形が不正です');
+        throw const SourceUnreachable(
+            sourceName, 'malformed querybatch response');
       }
       final next = <(PackageRef, String?)>[];
       for (var i = 0; i < results.length; i++) {

@@ -83,15 +83,15 @@ class Runner {
       repository = RepositoryPackageSource(
           PubDevClient(fetcher, base: endpoints.pubDev), repoFetcher);
     } else if (command.repoAdvisories) {
-      _warn('GITHUB_TOKEN が無いので、リポジトリアドバイザリ（レビュー前の速報）は'
-          '見ていません');
+      _warn('GITHUB_TOKEN is not set, so repository advisories (published '
+          'before GitHub review) were not checked');
     }
 
     return Checker(
       packages: FallbackSource(
         GitHubGlobalSource(github),
         OsvSource(fetcher, base: endpoints.osvApi),
-        onFallback: (e) => _warn('${e.message}。OSV.dev に切り替えて照会します'),
+        onFallback: (e) => _warn('${e.message}; using OSV.dev instead'),
       ),
       repository: repository,
       sdkAdvisories: SdkAdvisorySource(repoFetcher),
@@ -109,5 +109,5 @@ class Runner {
     }
   }
 
-  void _warn(String message) => err.writeln('dartvulncheck: 注意: $message');
+  void _warn(String message) => err.writeln('dartvulncheck: warning: $message');
 }

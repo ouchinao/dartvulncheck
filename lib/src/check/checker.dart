@@ -87,8 +87,9 @@ class Checker {
         findings.addAll(m.findings);
         if (m.dartVersionUnknown && !dartUnknownWarned) {
           dartUnknownWarned = true;
-          onWarning('Dart SDK の版が分からないので、Dart SDK だけのアドバイザリは'
-              '照合していません');
+          onWarning(
+              'the Dart SDK version is unknown, so Dart-only SDK advisories '
+              'were not checked');
         }
       }
       projects.add(_checked(l, findings));
@@ -148,8 +149,8 @@ class Checker {
 
     final early = await repository.query(unique);
     if (early.failures > 0) {
-      onWarning('リポジトリアドバイザリを ${early.failures} 件取れませんでした'
-          '（--verbose で一覧）');
+      onWarning('${early.failures} repository advisory lookups failed '
+          '(--verbose lists them)');
     }
     return ([...advisories, ...early.advisories], early.notes);
   }

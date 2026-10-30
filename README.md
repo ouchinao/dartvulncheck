@@ -38,8 +38,6 @@ It reads `pubspec.lock`, so run `dart pub get` (or `flutter pub get`) first.
 | `--no-transitive` | Do not check transitive dependencies | Checked |
 | `--verbose` | Show how many packages were queried and ignored, and which could not be looked up | Off |
 
-Output messages are currently in Japanese.
-
 ### Exit codes
 
 | Code | Meaning |

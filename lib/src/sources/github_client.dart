@@ -42,7 +42,7 @@ class GitHubClient {
       }
       final body = decodeJson(response, sourceName);
       if (body is! List) {
-        throw const SourceUnreachable(sourceName, '応答が配列ではありません');
+        throw const SourceUnreachable(sourceName, 'the response is not a list');
       }
       items.addAll(body);
       url = nextPage(response.headers['link']);

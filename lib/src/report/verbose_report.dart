@@ -5,25 +5,25 @@ String renderVerbose(CheckResult result) {
   for (final project in result.projects.whereType<CheckedProject>()) {
     final counts = project.packages;
     final ignored = project.findings.where((f) => f.ignored).toList();
-    out.writeln('${project.dir}: 照会 ${counts.queried} 件、'
-        '無視 ${ignored.length} 件');
+    out.writeln('${project.dir}: ${counts.queried} queried, '
+        '${ignored.length} ignored');
     if (counts.skippedTransitive > 0) {
-      out.writeln('  --no-transitive で飛ばした推移的依存: '
-          '${counts.skippedTransitive} 件');
+      out.writeln('  transitive dependencies skipped by --no-transitive: '
+          '${counts.skippedTransitive}');
     }
     if (counts.skipped.isNotEmpty) {
-      out.writeln('  照会できなかったパッケージ: ${counts.skipped.join(', ')}');
+      out.writeln('  not looked up: ${counts.skipped.join(', ')}');
     }
     for (final pkg in counts.thirdPartyHosted) {
-      out.writeln('  $pkg: pub.dev 以外でホストされています。'
-          'pub.dev の同名パッケージのアドバイザリと照合しています');
+      out.writeln('  $pkg: hosted outside pub.dev; checked against '
+          'advisories for the pub.dev package of the same name');
     }
     for (final f in ignored) {
-      out.writeln('  無視: ${f.id} ${f.subject} ${f.current}');
+      out.writeln('  ignored: ${f.id} ${f.subject} ${f.current}');
     }
   }
   if (result.sourceNotes.isNotEmpty) {
-    out.writeln('リポジトリアドバイザリ:');
+    out.writeln('repository advisories:');
     for (final note in result.sourceNotes) {
       out.writeln('  $note');
     }

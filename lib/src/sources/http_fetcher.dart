@@ -87,7 +87,7 @@ class HttpFetcher {
         }
         return response;
       } on TimeoutException {
-        lastError = '${timeout.inSeconds} 秒でタイムアウト';
+        lastError = 'timed out after ${timeout.inSeconds} s';
       } on SocketException catch (e) {
         lastError = e.message;
       } on http.ClientException catch (e) {
@@ -104,6 +104,6 @@ Object? decodeJson(http.Response response, String sourceName) {
   try {
     return jsonDecode(utf8.decode(response.bodyBytes));
   } on FormatException {
-    throw SourceUnreachable(sourceName, '応答が JSON ではありません');
+    throw SourceUnreachable(sourceName, 'the response is not JSON');
   }
 }

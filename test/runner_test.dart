@@ -53,7 +53,7 @@ void main() {
       makeProject(tmp, 'app', 'pure_dart.lock');
       final r = await run(['app', '--no-sdk']);
       expect(r.code, ExitCodes.ok);
-      expect(r.out, contains('問題なし'));
+      expect(r.out, contains('No problems found'));
     });
 
     test('3 when a vulnerability is found', () async {
@@ -72,7 +72,7 @@ void main() {
     test('1 for a bad argument, with usage', () async {
       final r = await run(['--fail-on', 'banana']);
       expect(r.code, ExitCodes.error);
-      expect(r.err, contains('使い方'));
+      expect(r.err, contains('Usage'));
     });
 
     test('1 when GitHub and OSV are both down', () async {
@@ -105,7 +105,7 @@ void main() {
         'GHSA-9324-jv53-9cc8,CVE-2020-35669',
       ]);
       expect(r.code, ExitCodes.ok);
-      expect(r.out, contains('無視 2'));
+      expect(r.out, contains('2 ignored'));
     });
   });
 
@@ -141,7 +141,7 @@ void main() {
     expect(r.out, contains('GHSA-9324-jv53-9cc8'));
   });
 
-  test('--strict counts "要確認"', () async {
+  test('--strict counts unverified advisories', () async {
     makeProject(tmp, 'app', 'pure_dart.lock');
     // Only the unverified SDK advisory GHSA-dddd applies to a Dart 3.13.7.
     final processes = FakeProcessRunner({
@@ -149,7 +149,7 @@ void main() {
     });
     final loose = await run(['app'], processes: processes);
     final strict = await run(['app', '--strict'], processes: processes);
-    expect(loose.out, contains('要確認'));
+    expect(loose.out, contains('UNVERIFIED'));
     expect(loose.code, ExitCodes.ok);
     expect(strict.code, ExitCodes.vulnerable);
   });
@@ -169,7 +169,7 @@ void main() {
       () async {
     makeProject(tmp, 'app', 'app.lock');
     final r = await run(['app', '--no-sdk'], env: const {});
-    expect(r.err, contains('GITHUB_TOKEN が無い'));
+    expect(r.err, contains('GITHUB_TOKEN is not set'));
     expect(r.api.requests.where((q) => q.url.host == 'pub.dev'), isEmpty);
     expect(r.out, isNot(contains('GHSA-zzzz-yyyy-xxxx')));
   });
@@ -188,7 +188,7 @@ void main() {
     final r = await run(['app', '--sdk-version', '3.47.6'],
         processes: nothingInstalled());
     expect(r.out, contains('GHSA-frr6-h895-5pxp  Flutter 3.47.6'));
-    expect(r.err, contains('Dart SDK の版が分からない'));
+    expect(r.err, contains('Dart SDK version is unknown'));
   });
 
   test('--json writes only JSON to stdout', () async {
@@ -230,14 +230,14 @@ void main() {
     final r = await run(['app'], api: api);
     expect(r.code, ExitCodes.error);
     expect(r.out, contains('GHSA-9324-jv53-9cc8'));
-    expect(r.out, contains('SDK（Flutter 3.47.6 stable / Dart 3.13.5）'));
+    expect(r.out, contains('SDK (Flutter 3.47.6 stable / Dart 3.13.5)'));
     expect(r.err, contains('dartvulncheck: SDK:'));
   });
 
   test('--help wins over every other option', () async {
     final r = await run(['--json', '--strict', '--help']);
     expect(r.code, ExitCodes.ok);
-    expect(r.out, startsWith('使い方'));
+    expect(r.out, startsWith('Usage'));
   });
 
   test('version.dart matches pubspec.yaml', () {

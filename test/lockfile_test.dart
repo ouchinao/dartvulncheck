@@ -63,8 +63,9 @@ void main() {
     expect(
       () => parseLockfile(fixture('lockfiles/broken.lock'),
           path: 'app/pubspec.lock'),
-      throwsA(isA<LockfileUnreadable>().having((e) => e.line, 'line', 5).having(
-          (e) => e.message, 'message', startsWith('app/pubspec.lock:5'))),
+      throwsA(isA<LockfileUnreadable>()
+          .having((e) => e.line, 'line', 5)
+          .having((e) => e.message, 'message', contains('app/pubspec.lock:5'))),
     );
   });
 

@@ -41,35 +41,45 @@ sealed class Command {
     );
   }
 
-  static String get usage => '使い方: dartvulncheck [options] [directory ...]\n\n'
-      'pubspec.lock と Flutter/Dart SDK を既知の脆弱性と照合します。\n'
-      '終了コード: 0 問題なし / 1 実行できなかった / 3 脆弱性あり\n\n'
+  static String get usage =>
+      'Usage: dartvulncheck [options] [directory ...]\n\n'
+      'Checks pubspec.lock and the Flutter/Dart SDK against known '
+      'vulnerabilities.\n'
+      'Exit codes: 0 no problems / 1 could not check / 3 vulnerabilities found'
+      '\n\n'
       '${_parser.usage}';
 
   static final ArgParser _parser = ArgParser()
-    ..addFlag('json', negatable: false, help: 'JSON で出力する')
+    ..addFlag('json', negatable: false, help: 'Print JSON.')
     ..addOption('fail-on',
         valueHelp: 'level',
         allowed: Severity.failOnValues,
         defaultsTo: 'low',
-        help: 'この深刻度以上があれば終了コード 3')
+        help: 'Exit 3 if anything at this severity or above is found.')
     ..addMultiOption('ignore',
         valueHelp: 'id',
-        help: '無視するアドバイザリ ID（GHSA / CVE）。pubspec.yaml の '
-            'ignored_advisories に加算')
-    ..addFlag('strict', negatable: false, help: '範囲が読めず「要確認」になった件も脆弱性として数える')
+        help: 'Advisory ID to ignore (GHSA or CVE). Added to '
+            'ignored_advisories in pubspec.yaml.')
+    ..addFlag('strict',
+        negatable: false,
+        help: 'Also count unverified advisories (affected range unreadable).')
     ..addFlag('repo-advisories',
         defaultsTo: true,
-        help: 'リポジトリアドバイザリ（レビュー前の速報）も見る。'
-            'GITHUB_TOKEN が無ければ自動で省く')
+        help: 'Also read repository advisories (published before GitHub '
+            'review). Skipped without GITHUB_TOKEN.')
     ..addOption('sdk-version',
-        valueHelp: 'ver', help: 'Flutter のバージョンを手で渡す（flutter が PATH に無い CI 向け）')
-    ..addFlag('sdk', defaultsTo: true, help: 'Flutter/Dart SDK も照合する')
-    ..addFlag('transitive', defaultsTo: true, help: '推移的依存も見る')
+        valueHelp: 'ver',
+        help: 'Flutter version to check, for CI without flutter on PATH.')
+    ..addFlag('sdk', defaultsTo: true, help: 'Also check the Flutter/Dart SDK.')
+    ..addFlag('transitive',
+        defaultsTo: true, help: 'Also check transitive dependencies.')
     ..addFlag('verbose',
-        abbr: 'v', negatable: false, help: '照会した件数、無視した件数、照会できなかったパッケージを出す')
-    ..addFlag('version', negatable: false, help: 'バージョンを出す')
-    ..addFlag('help', abbr: 'h', negatable: false, help: '使い方を出す');
+        abbr: 'v',
+        negatable: false,
+        help:
+            'Show queried and ignored counts, and packages that could not be looked up.')
+    ..addFlag('version', negatable: false, help: 'Print the version.')
+    ..addFlag('help', abbr: 'h', negatable: false, help: 'Print this usage.');
 }
 
 class ShowHelp extends Command {

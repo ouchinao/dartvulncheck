@@ -1,0 +1,16 @@
+packages:
+  flutter:
+    dependency: "direct main"
+    description: flutter
+    source: sdk
+    version: "0.0.0"
+  zeibun_core:
+    dependency: "direct main"
+    description:
+      path: "../zeibun_core"
+      relative: true
+    source: path
+    version: "0.1.0"
+sdks:
+  dart: ">=3.13.0 <4.0.0"
+  flutter: ">=3.47.0"

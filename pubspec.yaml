@@ -1,0 +1,23 @@
+name: dartvulncheck
+description: >-
+  Checks pubspec.lock and the Flutter/Dart SDK you build with against known
+  vulnerabilities, and fails CI when it finds one.
+version: 0.1.0
+repository: https://github.com/ouchinao/dartvulncheck
+
+environment:
+  sdk: ^3.5.0
+
+executables:
+  dartvulncheck:
+
+dependencies:
+  args: ^2.5.0
+  http: ^1.2.0
+  path: ^1.9.0
+  pub_semver: ^2.1.4
+  yaml: ^3.1.2
+
+dev_dependencies:
+  lints: ^5.0.0
+  test: ^1.25.0

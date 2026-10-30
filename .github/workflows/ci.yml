@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly: advisories appear even when the code does not change.
+    - cron: "17 3 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        sdk: [stable, "3.5.0"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: ${{ matrix.sdk }}
+      - run: dart pub get
+      - run: dart format --output=none --set-exit-if-changed .
+        if: matrix.sdk == 'stable'
+      - run: dart analyze --fatal-infos
+      - run: dart test
+
+  # A vulnerability checker should check its own dependencies.
+  vulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - run: dart pub get
+      - run: dart run bin/dartvulncheck.dart --verbose .
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

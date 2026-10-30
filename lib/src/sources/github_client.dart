@@ -1,0 +1,80 @@
+import 'package:http/http.dart' as http;
+
+import '../model/errors.dart';
+import 'http_fetcher.dart';
+
+class GitHubClient {
+  final HttpFetcher fetcher;
+  final Uri apiBase;
+  final String? token;
+
+  GitHubClient(this.fetcher, {required this.apiBase, this.token});
+
+  static const sourceName = 'GitHub';
+
+  bool get hasToken => token != null && token!.isNotEmpty;
+
+  Map<String, String> get _headers => {
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        if (hasToken) 'Authorization': 'Bearer $token',
+      };
+
+  Uri endpoint(String path, [Map<String, String>? query]) {
+    final basePath = apiBase.path.endsWith('/')
+        ? apiBase.path.substring(0, apiBase.path.length - 1)
+        : apiBase.path;
+    return apiBase.replace(
+        path: '$basePath$path',
+        queryParameters: query == null || query.isEmpty ? null : query);
+  }
+
+  Future<List<Object?>?> getAllPages(Uri first) async {
+    final items = <Object?>[];
+    Uri? url = first;
+    while (url != null) {
+      final response =
+          await fetcher.get(url, headers: _headers, sourceName: sourceName);
+      if (response.statusCode == 404) return null;
+      _throwIfRateLimited(response);
+      if (response.statusCode != 200) {
+        throw GitHubHttpError(response.statusCode, url);
+      }
+      final body = decodeJson(response, sourceName);
+      if (body is! List) {
+        throw const SourceUnreachable(sourceName, '応答が配列ではありません');
+      }
+      items.addAll(body);
+      url = nextPage(response.headers['link']);
+    }
+    return items;
+  }
+
+  void _throwIfRateLimited(http.Response response) {
+    final status = response.statusCode;
+    final remaining = response.headers['x-ratelimit-remaining'];
+    final looksLimited = status == 429 ||
+        (status == 403 &&
+            (remaining == '0' ||
+                response.body.toLowerCase().contains('rate limit')));
+    if (looksLimited) throw RateLimited(sourceName, hasToken: hasToken);
+  }
+
+  static Uri? nextPage(String? link) {
+    if (link == null) return null;
+    for (final part in link.split(',')) {
+      final m = RegExp(r'<([^>]+)>\s*;\s*rel="?next"?').firstMatch(part);
+      if (m != null) return Uri.parse(m.group(1)!);
+    }
+    return null;
+  }
+}
+
+class GitHubHttpError implements Exception {
+  final int statusCode;
+  final Uri url;
+  const GitHubHttpError(this.statusCode, this.url);
+
+  @override
+  String toString() => 'HTTP $statusCode ($url)';
+}

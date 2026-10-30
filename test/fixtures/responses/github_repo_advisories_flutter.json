@@ -1,0 +1,51 @@
+[
+  {
+    "ghsa_id": "GHSA-gggg-hhhh-iiii",
+    "cve_id": null,
+    "url": "https://api.github.com/repos/flutter/flutter/security-advisories/GHSA-gggg-hhhh-iiii",
+    "html_url": "https://github.com/flutter/flutter/security/advisories/GHSA-gggg-hhhh-iiii",
+    "summary": "TLS MitM via compromised eMudhra intermediate CA certificates",
+    "description": "(本文は省略)",
+    "severity": "high",
+    "author": null,
+    "publisher": {
+      "login": "maintainer"
+    },
+    "identifiers": [
+      {
+        "value": "GHSA-gggg-hhhh-iiii",
+        "type": "GHSA"
+      },
+      {
+        "value": "GHSA-frr6-h895-5pxp",
+        "type": "GHSA"
+      }
+    ],
+    "state": "published",
+    "created_at": "2026-10-20T00:00:00Z",
+    "updated_at": "2026-10-23T00:00:00Z",
+    "published_at": "2026-10-23T00:00:00Z",
+    "closed_at": null,
+    "withdrawn_at": null,
+    "submission": null,
+    "vulnerabilities": [
+      {
+        "package": {
+          "ecosystem": "other",
+          "name": "flutter"
+        },
+        "vulnerable_version_range": "< 3.47.8",
+        "patched_versions": "3.47.8",
+        "vulnerable_functions": []
+      }
+    ],
+    "cvss": null,
+    "cwes": [],
+    "cwe_ids": [],
+    "credits": [],
+    "credits_detailed": [],
+    "collaborating_users": [],
+    "collaborating_teams": [],
+    "private_fork": null
+  }
+]

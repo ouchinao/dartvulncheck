@@ -1,0 +1,15 @@
+{
+  "frameworkVersion": "3.47.6",
+  "channel": "stable",
+  "repositoryUrl": "https://github.com/flutter/flutter.git",
+  "frameworkRevision": "0123456789abcdef0123456789abcdef01234567",
+  "frameworkCommitDate": "2026-10-08 10:00:00 -0700",
+  "engineRevision": "89abcdef0123456789abcdef0123456789abcdef",
+  "engineCommitDate": "2026-10-08 09:00:00.000Z",
+  "engineContentHash": "abcdef0123456789abcdef0123456789abcdef01",
+  "engineBuildDate": "2026-10-08 12:00:00.000",
+  "dartSdkVersion": "3.13.5 (build 3.13.5)",
+  "devToolsVersion": "2.52.0",
+  "flutterVersion": "3.47.6",
+  "flutterRoot": "/opt/flutter"
+}

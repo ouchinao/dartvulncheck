@@ -147,6 +147,48 @@ void main() {
     });
   });
 
+  group('bounded responses', () {
+    test('pagination stops after the page limit', () async {
+      var calls = 0;
+      final client = MockClient((req) async {
+        calls++;
+        return http.Response('[]', 200, headers: {
+          'link': '<https://api.github.com/advisories?page=${calls + 1}>; '
+              'rel="next"',
+        });
+      });
+      final source = GitHubGlobalSource(GitHubClient(fetcherFor(client),
+          apiBase: Endpoints.defaults.githubApi));
+      await expectLater(source.query([pkg('dio', '1.0.0')]),
+          throwsA(isA<UnexpectedResponse>()));
+      expect(calls, GitHubClient.maxPages);
+    });
+
+    test('OSV paging stops after the page limit', () async {
+      var calls = 0;
+      final client = MockClient((req) async {
+        calls++;
+        return http.Response(
+            '{"results":[{"vulns":[],"next_page_token":"again"}]}', 200);
+      });
+      await expectLater(
+          OsvSource(fetcherFor(client), base: Endpoints.defaults.osvApi)
+              .query([pkg('dio', '1.0.0')]),
+          throwsA(isA<UnexpectedResponse>()));
+      expect(calls, OsvSource.maxPages);
+    });
+
+    test('a body over the size limit is refused', () async {
+      final client =
+          MockClient((req) async => http.Response('[${'1,' * 200}1]', 200));
+      final fetcher = HttpFetcher(client, maxBodyBytes: 100);
+      final source = GitHubGlobalSource(
+          GitHubClient(fetcher, apiBase: Endpoints.defaults.githubApi));
+      await expectLater(source.query([pkg('dio', '1.0.0')]),
+          throwsA(isA<UnexpectedResponse>()));
+    });
+  });
+
   group('withdrawn advisories', () {
     test('a withdrawn advisory in the global database is dropped', () async {
       final api = FakeApi();

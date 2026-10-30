@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -66,11 +67,13 @@ class HttpFetcher {
   final http.Client client;
   final Duration timeout;
   final Duration retryDelay;
+  final int maxBodyBytes;
 
   HttpFetcher(
     this.client, {
     this.timeout = const Duration(seconds: 30),
     this.retryDelay = const Duration(seconds: 1),
+    this.maxBodyBytes = 16 << 20,
   });
 
   static const userAgent = 'dartvulncheck/$packageVersion';
@@ -130,6 +133,8 @@ class HttpFetcher {
     throw SourceUnreachable(sourceName, '$lastError');
   }
 
+  // Read with a cap, not buffered whole by the client: a response of any
+  // size would otherwise sit in memory before anything looked at it.
   Future<http.Response> _read(http.Request request, String sourceName) async {
     final streamed = await client.send(request);
     // The status code, not BaseResponse.isRedirect: that flag is left to the
@@ -142,7 +147,18 @@ class HttpFetcher {
           '${to == null || to.isEmpty ? '' : ' to $to'}), '
           'which is not followed');
     }
-    return http.Response.fromStream(streamed);
+    final bytes = BytesBuilder(copy: false);
+    await for (final chunk in streamed.stream) {
+      bytes.add(chunk);
+      if (bytes.length > maxBodyBytes) {
+        throw UnexpectedResponse(
+            sourceName, 'the response is larger than $maxBodyBytes bytes');
+      }
+    }
+    return http.Response.bytes(bytes.takeBytes(), streamed.statusCode,
+        headers: streamed.headers,
+        request: request,
+        reasonPhrase: streamed.reasonPhrase);
   }
 }
 

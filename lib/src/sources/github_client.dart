@@ -29,10 +29,16 @@ class GitHubClient {
         queryParameters: query == null || query.isEmpty ? null : query);
   }
 
+  static const maxPages = 50;
+
   Future<List<Object?>?> getAllPages(Uri first) async {
     final items = <Object?>[];
     Uri? url = first;
+    var pages = 0;
     while (url != null) {
+      if (++pages > maxPages) {
+        throw UnexpectedResponse(sourceName, 'more than $maxPages pages');
+      }
       final response =
           await fetcher.get(url, headers: _headers, sourceName: sourceName);
       if (response.statusCode == 404) return null;

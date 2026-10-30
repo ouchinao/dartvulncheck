@@ -1,0 +1,25 @@
+Flutter 3.47.6 stable / Dart 3.13.5 (flutter --version)
+
+app/pubspec.lock  9 packages (hosted 6, git 1, path 1, sdk 1)
+
+SDK
+  GHSA-frr6-h895-5pxp  Flutter 3.47.6  HIGH  TLS MitM vulnerability on Android, Windows, and Linux due to compromised eMudhra intermediate CA certificates
+    Fix: upgrade to Flutter 3.47.8 (Dart 3.13.7) and rebuild
+    https://github.com/dart-lang/sdk/security/advisories/GHSA-frr6-h895-5pxp
+
+Packages
+  GHSA-9324-jv53-9cc8  dio 4.0.6 (direct)  HIGH  dio vulnerable to CRLF injection with HTTP method string
+    Fix: 5.0.0 or later
+    https://github.com/advisories/GHSA-9324-jv53-9cc8
+  GHSA-4rgh-jx4f-qfcq  http 0.13.2 (transitive)  MODERATE  http before 0.13.3 vulnerable to header injection
+    Fix: 0.13.3 or later. It is transitive: upgrade the package that depends on it, or use dependency_overrides
+    https://github.com/advisories/GHSA-4rgh-jx4f-qfcq
+
+packages/zeibun_core/pubspec.lock  1 package
+
+SDK
+  GHSA-frr6-h895-5pxp  Dart 3.13.5  HIGH  TLS MitM vulnerability on Android, Windows, and Linux due to compromised eMudhra intermediate CA certificates
+    Fix: upgrade to Dart 3.13.7 and rebuild
+    https://github.com/dart-lang/sdk/security/advisories/GHSA-frr6-h895-5pxp
+
+3 findings (SDK 1, packages 2), 0 ignored

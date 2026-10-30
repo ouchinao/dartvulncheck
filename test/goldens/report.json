@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "tool": {
+    "name": "dartvulncheck",
+    "version": "0.1.0"
+  },
+  "sdk": {
+    "flutter": "3.47.6",
+    "dart": "3.13.5",
+    "channel": "stable",
+    "origin": "flutter --version"
+  },
+  "projects": [
+    {
+      "path": "app",
+      "packages": {
+        "total": 9,
+        "queried": 5,
+        "skipped": [
+          {
+            "name": "flutter",
+            "reason": "sdk"
+          },
+          {
+            "name": "my_fork",
+            "reason": "git"
+          },
+          {
+            "name": "weird_version",
+            "reason": "invalid version"
+          },
+          {
+            "name": "zeibun_core",
+            "reason": "path"
+          }
+        ]
+      },
+      "findings": [
+        {
+          "id": "GHSA-frr6-h895-5pxp",
+          "aliases": [],
+          "kind": "sdk",
+          "subject": "Flutter",
+          "current": "3.47.6",
+          "fixed": "3.47.8",
+          "alsoFixedIn": {
+            "Dart": "3.13.7"
+          },
+          "dependency": null,
+          "severity": "high",
+          "summary": "TLS MitM vulnerability on Android, Windows, and Linux due to compromised eMudhra intermediate CA certificates",
+          "url": "https://github.com/dart-lang/sdk/security/advisories/GHSA-frr6-h895-5pxp",
+          "ignored": false
+        },
+        {
+          "id": "GHSA-9324-jv53-9cc8",
+          "aliases": [
+            "CVE-2021-31402"
+          ],
+          "kind": "package",
+          "subject": "dio",
+          "current": "4.0.6",
+          "fixed": "5.0.0",
+          "alsoFixedIn": {},
+          "dependency": "direct main",
+          "severity": "high",
+          "summary": "dio vulnerable to CRLF injection with HTTP method string",
+          "url": "https://github.com/advisories/GHSA-9324-jv53-9cc8",
+          "ignored": false
+        },
+        {
+          "id": "GHSA-4rgh-jx4f-qfcq",
+          "aliases": [
+            "CVE-2020-35669"
+          ],
+          "kind": "package",
+          "subject": "http",
+          "current": "0.13.2",
+          "fixed": "0.13.3",
+          "alsoFixedIn": {},
+          "dependency": "transitive",
+          "severity": "moderate",
+          "summary": "http before 0.13.3 vulnerable to header injection",
+          "url": "https://github.com/advisories/GHSA-4rgh-jx4f-qfcq",
+          "ignored": false
+        }
+      ]
+    },
+    {
+      "path": "packages/zeibun_core",
+      "packages": {
+        "total": 1,
+        "queried": 1,
+        "skipped": []
+      },
+      "findings": [
+        {
+          "id": "GHSA-frr6-h895-5pxp",
+          "aliases": [],
+          "kind": "sdk",
+          "subject": "Dart",
+          "current": "3.13.5",
+          "fixed": "3.13.7",
+          "alsoFixedIn": {},
+          "dependency": null,
+          "severity": "high",
+          "summary": "TLS MitM vulnerability on Android, Windows, and Linux due to compromised eMudhra intermediate CA certificates",
+          "url": "https://github.com/dart-lang/sdk/security/advisories/GHSA-frr6-h895-5pxp",
+          "ignored": false
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "findings": 3,
+    "ignored": 0,
+    "unverified": 0
+  }
+}

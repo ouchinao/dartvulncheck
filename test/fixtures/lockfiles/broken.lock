@@ -1,0 +1,5 @@
+packages:
+  dio:
+    dependency: "direct main"
+    source: hosted
+     version: "5.7.0"

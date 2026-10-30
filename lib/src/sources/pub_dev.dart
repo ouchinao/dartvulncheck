@@ -51,6 +51,13 @@ String? githubRepoFromUrl(String url) {
   if (segments.length < 2) return null;
   var repo = segments[1];
   if (repo.endsWith('.git')) repo = repo.substring(0, repo.length - 4);
-  if (repo.isEmpty) return null;
+  // Checked against GitHub's own name rules, not only split: the two
+  // segments become part of an API path, and pub.dev lets a package point
+  // at any URL, so "a%2F..%2Fx" would otherwise walk into another endpoint.
+  if (!_githubName.hasMatch(segments[0]) || !_githubName.hasMatch(repo)) {
+    return null;
+  }
   return '${segments[0]}/$repo';
 }
+
+final _githubName = RegExp(r'^(?!\.\.?$)[A-Za-z0-9_.-]+$');

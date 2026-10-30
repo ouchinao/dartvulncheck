@@ -365,6 +365,14 @@ void main() {
       expect(githubRepoFromUrl('https://github.com/a'), isNull);
     });
 
+    test('an owner or repository that is not a GitHub name is rejected', () {
+      expect(githubRepoFromUrl('https://github.com/a%2F..%2Fx/b'), isNull);
+      expect(githubRepoFromUrl('https://github.com/a/..'), isNull);
+      expect(githubRepoFromUrl('https://github.com/a/b?state=all'), 'a/b');
+      expect(githubRepoFromUrl('https://github.com/dart-lang/sdk.git'),
+          'dart-lang/sdk');
+    });
+
     test(
         'a repository advisory cannot speak for a package from another '
         'repository', () async {

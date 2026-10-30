@@ -1,53 +1,39 @@
 import '../model/finding.dart';
 import '../model/package_ref.dart';
-import 'result.dart';
+import '../check/result.dart';
+import 'summary.dart';
 
 // No colours: escape codes garble CI logs.
 String renderText(CheckResult result) {
   final out = StringBuffer();
   var sdkLinePrinted = false;
 
+  final sdk = result.sdk;
+  if (sdk is SdkFailed) {
+    out
+      ..writeln('SDK（${sdk.info}）')
+      ..writeln('  調べられませんでした: ${sdk.error.message}')
+      ..writeln();
+  }
+
   for (final (i, project) in result.projects.indexed) {
     if (i > 0) out.writeln();
-    out.writeln(_header(project));
-
-    if (!sdkLinePrinted && result.sdk != null && project.error == null) {
-      out.writeln('${result.sdk}（${result.sdk!.origin}）');
-      sdkLinePrinted = true;
-    }
-
-    if (project.error != null) {
-      out.writeln('  調べられませんでした: ${project.error!.message}');
-      continue;
-    }
-
-    final visible = project.findings.where((f) => !f.ignored).toList();
-    if (visible.isEmpty) {
-      out.writeln('  問題なし');
-      continue;
-    }
-
-    final sdk = visible.where((f) => f.kind.isSdk).toList();
-    final packages = visible.where((f) => !f.kind.isSdk).toList();
-    if (sdk.isNotEmpty) {
-      out
-        ..writeln()
-        ..writeln('SDK');
-      for (final f in sdk) {
-        _writeFinding(out, f);
-      }
-    }
-    if (packages.isNotEmpty) {
-      out
-        ..writeln()
-        ..writeln('パッケージ');
-      for (final f in packages) {
-        _writeFinding(out, f);
-      }
+    switch (project) {
+      case FailedProject(:final lockPath, :final error):
+        out
+          ..writeln(lockPath)
+          ..writeln('  調べられませんでした: ${error.message}');
+      case CheckedProject():
+        out.writeln(_header(project));
+        if (!sdkLinePrinted && sdk is SdkChecked) {
+          out.writeln('${sdk.info}（${sdk.info.origin}）');
+          sdkLinePrinted = true;
+        }
+        _writeFindings(out, project.findings);
     }
   }
 
-  final s = result.summarize();
+  final s = Summary.of(result);
   out
     ..writeln()
     ..writeln([
@@ -58,12 +44,31 @@ String renderText(CheckResult result) {
   return out.toString();
 }
 
-String _header(ProjectResult project) {
-  final lock = project.lockfile;
-  if (lock == null) return project.lockPath;
-  final counts = lock.countBySource;
+void _writeFindings(StringBuffer out, List<Finding> findings) {
+  final visible = sortFindings(findings.where((f) => !f.ignored));
+  if (visible.isEmpty) {
+    out.writeln('  問題なし');
+    return;
+  }
+  for (final (title, group) in [
+    ('SDK', visible.where((f) => f.kind.isSdk)),
+    ('パッケージ', visible.where((f) => !f.kind.isSdk)),
+  ]) {
+    if (group.isEmpty) continue;
+    out
+      ..writeln()
+      ..writeln(title);
+    for (final f in group) {
+      _writeFinding(out, f);
+    }
+  }
+}
+
+String _header(CheckedProject project) {
+  final counts = project.packages.bySource;
+  final total = project.packages.total;
   final hosted = counts[PackageSource.hosted] ?? 0;
-  final detail = hosted == lock.total
+  final detail = hosted == total
       ? ''
       : '（${[
           'hosted $hosted',
@@ -71,7 +76,7 @@ String _header(ProjectResult project) {
             if (s != PackageSource.hosted && (counts[s] ?? 0) > 0)
               '${s.name} ${counts[s]}',
         ].join('、')}）';
-  return '${project.lockPath}  ${lock.total} packages$detail';
+  return '${project.lockPath}  $total packages$detail';
 }
 
 void _writeFinding(StringBuffer out, Finding f) {

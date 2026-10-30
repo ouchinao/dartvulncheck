@@ -2,10 +2,9 @@ import '../model/advisory.dart';
 import '../model/errors.dart';
 import '../model/package_ref.dart';
 import '../model/severity.dart';
-import 'advisory_source.dart';
 import 'github_client.dart';
 import 'github_global.dart';
-import 'http_fetcher.dart';
+import 'pool.dart';
 import 'pub_dev.dart';
 
 // Cached for one run only, never on disk: a stale "no problems" is worse
@@ -58,12 +57,20 @@ class RepositoryAdvisoryFetcher {
   }
 }
 
-class RepositoryPackageSource with SourceNotes implements AdvisorySource {
+class RepositoryResult {
+  final List<Advisory> advisories;
+  final List<String> notes;
+  final int failures;
+  const RepositoryResult(this.advisories, this.notes, this.failures);
+}
+
+// Not an AdvisorySource: nothing stands in for it, and it reports notes and
+// failures that the interchangeable sources do not have.
+class RepositoryPackageSource {
   final PubDevClient pubDev;
   final RepositoryAdvisoryFetcher fetcher;
   final int pubDevConcurrency;
   final int githubConcurrency;
-  final _repoOf = <String, Future<String?>>{};
 
   RepositoryPackageSource(
     this.pubDev,
@@ -72,45 +79,46 @@ class RepositoryPackageSource with SourceNotes implements AdvisorySource {
     this.githubConcurrency = 4,
   });
 
-  int failures = 0;
+  // Notes and failures come back in the result, not as fields on this
+  // object: fields would carry one call's state into the next.
+  Future<RepositoryResult> query(List<PackageRef> packages) async {
+    final notes = <String>[];
+    var failures = 0;
 
-  @override
-  String get name => 'repository advisories';
-
-  @override
-  Future<List<Advisory>> query(List<PackageRef> packages) async {
-    failures = 0;
-    final lookups = packages.where((p) {
+    final lookups = <PackageRef>[];
+    for (final p in packages) {
       if (p.isThirdPartyHosted) {
         notes.add('${p.name}: pub.dev 以外でホストされているので'
             'リポジトリアドバイザリを見ていません');
-        return false;
+      } else {
+        lookups.add(p);
       }
-      return true;
-    }).toList();
+    }
+    final names = {for (final p in lookups) p.name}.toList();
 
-    final repos = await mapPool(lookups, pubDevConcurrency, (p) async {
+    final repos = await mapPool(names, pubDevConcurrency, (name) async {
       try {
-        return await _repoOf.putIfAbsent(
-            p.name, () => pubDev.repositoryUrl(p.name).then(_toRepo));
+        final url = await pubDev.repositoryUrl(name);
+        return url == null ? null : githubRepoFromUrl(url);
       } on SourceUnreachable catch (e) {
-        _repoOf.remove(p.name);
         failures++;
-        notes.add('${p.name}: ${e.message}');
+        notes.add('$name: ${e.message}');
         return null;
       }
     });
 
-    final byRepo = <String, List<PackageRef>>{};
-    for (var i = 0; i < lookups.length; i++) {
+    final repoOf = <String, String>{};
+    for (var i = 0; i < names.length; i++) {
       final repo = repos[i];
       if (repo == null) {
-        notes.add('${lookups[i].name}: リポジトリが GitHub に無いか不明なので'
+        notes.add('${names[i]}: リポジトリが GitHub に無いか不明なので'
             'リポジトリアドバイザリを見ていません');
-        continue;
+      } else {
+        repoOf[names[i]] = repo;
       }
-      (byRepo[repo] ??= []).add(lookups[i]);
     }
+    final byRepo = <String, List<String>>{};
+    repoOf.forEach((name, repo) => (byRepo[repo] ??= []).add(name));
 
     final repoNames = byRepo.keys.toList();
     final fetched = await mapPool(repoNames, githubConcurrency, (repo) async {
@@ -131,44 +139,49 @@ class RepositoryPackageSource with SourceNotes implements AdvisorySource {
         notes.add('${repoNames[i]}: アドバイザリを読めませんでした');
         continue;
       }
-      final fromRepo = byRepo[repoNames[i]]!;
       for (final a in advisories) {
-        final affected = <AffectedPackage>[];
-        final unnamed = a.affected.isEmpty || a.affected.any((e) => !e.hasName);
-        for (final e in a.affected) {
-          if (!e.hasName) continue;
-          final eco = e.ecosystem?.toLowerCase();
-          if (eco != null && eco.isNotEmpty && eco != 'pub') continue;
-          if (lockNames.contains(e.name)) affected.add(e);
-        }
-        // Not skipped when no package is named: it may concern any package
-        // published from this repository.
-        if (unnamed) {
-          for (final p in fromRepo) {
-            if (!affected.any((e) => e.name == p.name)) {
-              affected.add(AffectedPackage(name: p.name, ecosystem: 'pub'));
-            }
-          }
-        }
-        if (affected.isNotEmpty) {
-          out.add(Advisory(
-            id: a.id,
-            aliases: a.aliases,
-            summary: a.summary,
-            severity: a.severity,
-            url: a.url,
-            origin: a.origin,
-            repository: a.repository,
-            affected: affected,
-          ));
+        final affected = _affectedInLock(a, lockNames, byRepo[repoNames[i]]!);
+        if (affected.isNotEmpty) out.add(_withAffected(a, affected));
+      }
+    }
+    return RepositoryResult(out, notes, failures);
+  }
+
+  static List<AffectedPackage> _affectedInLock(
+      Advisory a, Set<String> lockNames, List<String> fromRepo) {
+    final affected = <AffectedPackage>[
+      for (final e in a.affected)
+        if (e.hasName && _isPub(e) && lockNames.contains(e.name)) e,
+    ];
+    // Not skipped when no package is named: it may concern any package
+    // published from this repository.
+    final unnamed = a.affected.isEmpty || a.affected.any((e) => !e.hasName);
+    if (unnamed) {
+      for (final name in fromRepo) {
+        if (!affected.any((e) => e.name == name)) {
+          affected.add(AffectedPackage(name: name, ecosystem: 'pub'));
         }
       }
     }
-    return out;
+    return affected;
   }
 
-  static String? _toRepo(String? url) =>
-      url == null ? null : githubRepoFromUrl(url);
+  static bool _isPub(AffectedPackage e) {
+    final eco = e.ecosystem?.toLowerCase();
+    return eco == null || eco.isEmpty || eco == 'pub';
+  }
+
+  static Advisory _withAffected(Advisory a, List<AffectedPackage> affected) =>
+      Advisory(
+        id: a.id,
+        aliases: a.aliases,
+        summary: a.summary,
+        severity: a.severity,
+        url: a.url,
+        origin: a.origin,
+        repository: a.repository,
+        affected: affected,
+      );
 }
 
 // Repository advisories, not the global database: the SDKs belong to no

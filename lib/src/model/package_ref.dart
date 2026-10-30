@@ -30,13 +30,6 @@ enum Dependency {
       };
 
   bool get isDirect => this != Dependency.transitive;
-
-  String get jsonName => switch (this) {
-        Dependency.directMain => 'direct main',
-        Dependency.directDev => 'direct dev',
-        Dependency.directOverridden => 'direct overridden',
-        Dependency.transitive => 'transitive',
-      };
 }
 
 class PackageRef {

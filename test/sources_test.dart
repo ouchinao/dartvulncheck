@@ -235,17 +235,18 @@ void main() {
       final source = RepositoryPackageSource(
           PubDevClient(fetcherFor(api.client), base: Endpoints.defaults.pubDev),
           RepositoryAdvisoryFetcher(github));
-      final advisories = await source
+      final result = await source
           .query([pkg('dio', '4.0.6'), pkg('unknown_pkg', '1.0.0')]);
-      expect(advisories.map((a) => a.id), [
+      expect(result.advisories.map((a) => a.id), [
         'GHSA-zzzz-yyyy-xxxx',
         'GHSA-9324-jv53-9cc8',
         'GHSA-qqqq-rrrr-ssss',
       ]);
-      final unnamed = advisories.last;
+      final unnamed = result.advisories.last;
       expect(unnamed.affected.single.name, 'dio');
       expect(unnamed.affected.single.ranges, isEmpty);
-      expect(source.notes, anyElement(contains('unknown_pkg')));
+      expect(result.notes, anyElement(contains('unknown_pkg')));
+      expect(result.failures, 0);
     });
 
     test('each repository is fetched once per run', () async {

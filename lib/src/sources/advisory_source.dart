@@ -8,7 +8,3 @@ abstract class AdvisorySource {
 
   Future<List<Advisory>> query(List<PackageRef> packages);
 }
-
-mixin SourceNotes {
-  final List<String> notes = [];
-}

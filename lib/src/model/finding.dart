@@ -12,8 +12,6 @@ enum FindingKind {
   bool get isSdk => this == sdk || this == sdkUnverified;
 
   bool get isUnverified => this == packageUnverified || this == sdkUnverified;
-
-  String get jsonName => name;
 }
 
 class Finding {

@@ -4,6 +4,7 @@ import '../model/package_ref.dart';
 import '../model/severity.dart';
 import 'advisory_source.dart';
 import 'http_fetcher.dart';
+import 'pool.dart';
 
 // Only a fallback, not the primary: same data as the GitHub Advisory
 // Database, arriving later.

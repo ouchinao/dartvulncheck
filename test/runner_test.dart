@@ -211,6 +211,35 @@ void main() {
     expect(r.out.trim(), 'dartvulncheck $packageVersion');
   });
 
+  test('packages shared by two projects are looked up once', () async {
+    makeProject(tmp, 'app', 'app.lock');
+    makeProject(tmp, 'app2', 'app.lock');
+    final r = await run(['app', 'app2', '--no-sdk']);
+    expect(
+        r.api.requests.where((q) => q.url.path == '/advisories'), hasLength(1));
+    expect(r.api.requests.where((q) => q.url.path == '/api/packages/dio'),
+        hasLength(1));
+    expect(r.out, contains('app2/pubspec.lock'));
+  });
+
+  test(
+      'SDK advisories that cannot be read fail the run but the packages '
+      'are still checked', () async {
+    makeProject(tmp, 'app', 'app.lock');
+    final api = FakeApi()..forbiddenRepos = {'dart-lang/sdk'};
+    final r = await run(['app'], api: api);
+    expect(r.code, ExitCodes.error);
+    expect(r.out, contains('GHSA-9324-jv53-9cc8'));
+    expect(r.out, contains('SDK（Flutter 3.47.6 stable / Dart 3.13.5）'));
+    expect(r.err, contains('dartvulncheck: SDK:'));
+  });
+
+  test('--help wins over every other option', () async {
+    final r = await run(['--json', '--strict', '--help']);
+    expect(r.code, ExitCodes.ok);
+    expect(r.out, startsWith('使い方'));
+  });
+
   test('version.dart matches pubspec.yaml', () {
     final pubspec = File('pubspec.yaml').readAsStringSync();
     expect(pubspec, contains('\nversion: $packageVersion\n'));

@@ -32,6 +32,9 @@ class FakeApi {
   int? osvStatus;
   int? pubDevStatus;
 
+  /// Repositories whose advisories answer 403 (private or not allowed).
+  Set<String> forbiddenRepos = {};
+
   late final http.Client client = MockClient(handle);
 
   Future<http.Response> handle(http.Request request) async {
@@ -62,6 +65,10 @@ class FakeApi {
     }
     if (url.path == '/advisories') {
       return _json(fixtureJson('responses/github_global_advisories.json'));
+    }
+    if (forbiddenRepos
+        .any((r) => url.path == '/repos/$r/security-advisories')) {
+      return http.Response('{"message":"Forbidden"}', 403);
     }
     final m = RegExp(r'^/repos/([^/]+/[^/]+)/security-advisories$')
         .firstMatch(url.path);

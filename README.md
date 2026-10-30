@@ -95,4 +95,4 @@ dart test
 UPDATE_GOLDENS=1 dart test test/report_test.dart  # 出力の形を意図して変えたとき
 ```
 
-構成は `lib/src/` の下に `lockfile/`（入力）→ `sources/`（照会）→ `match/`（照合）→ `report/`（報告）、共有の型は `model/`。通信するのは `sources/` だけなので、テストは全てオフラインで動きます。
+構成は `lib/src/` の下に `lockfile/`（入力）→ `sources/`（照会）→ `match/`（照合）→ `report/`（報告）、それらを順に呼ぶ `check/`、引数と終了コードの `cli/`、共有の型は `model/`。通信するのは `sources/` だけなので、テストは全てオフラインで動きます。

@@ -2,6 +2,8 @@
 
 govulncheck for Dart and Flutter. It checks the packages pinned in `pubspec.lock`, and the Flutter/Dart SDK you build with, against known vulnerabilities, and fails CI when it finds one. Pure Dart, no Flutter required.
 
+An introduction in Japanese: [dartvulncheck on note](https://note.com/giftpen/n/n5aafedcd858e).
+
 What it adds over the warning from `flutter pub get`:
 
 | `flutter pub get` warning | dartvulncheck |

@@ -114,7 +114,73 @@ void main() {
       expect(seen.map((u) => u.host), ['api.github.com']);
     });
 
-    test('a redirect is not followed, and the message says so', () async {
+    test(
+        'a same-origin 301 is followed with the same headers, and paging '
+        'continues from the Link header of the page it leads to', () async {
+      final seen = <http.Request>[];
+      final client = MockClient((req) async {
+        seen.add(req);
+        if (req.url.path == '/repos/old/name/security-advisories') {
+          return http.Response('', 301, headers: {
+            'location': 'https://api.github.com/repositories/1/'
+                'security-advisories?state=published&per_page=100',
+          });
+        }
+        if (req.url.queryParameters['page'] == null) {
+          return http.Response('[]', 200, headers: {
+            'link': '<https://api.github.com/repositories/1/'
+                'security-advisories?state=published&per_page=100&page=2>; '
+                'rel="next"',
+          });
+        }
+        return http.Response('[]', 200);
+      });
+      final github = GitHubClient(fetcherFor(client),
+          apiBase: Endpoints.defaults.githubApi, token: 'tkn');
+      final items = await github.getAllPages(github.endpoint(
+          '/repos/old/name/security-advisories',
+          {'state': 'published', 'per_page': '100'}));
+      expect(items, isNotNull);
+      expect(seen.map((r) => r.url.path), [
+        '/repos/old/name/security-advisories',
+        '/repositories/1/security-advisories',
+        '/repositories/1/security-advisories',
+      ]);
+      expect(seen.last.url.queryParameters['page'], '2');
+      for (final r in seen) {
+        expect(r.url.host, 'api.github.com');
+        expect(r.headers['Authorization'], 'Bearer tkn');
+        expect(r.headers['Accept'], 'application/vnd.github+json');
+        expect(r.headers['X-GitHub-Api-Version'], isNotNull);
+        expect(r.headers['User-Agent'], 'dartvulncheck/$packageVersion');
+      }
+    });
+
+    test(
+        'a relative Location is resolved against the URL the request went to '
+        'and followed', () async {
+      final seen = <Uri>[];
+      final client = MockClient((req) async {
+        seen.add(req.url);
+        if (req.url.path.startsWith('/repos/')) {
+          return http.Response('', 301, headers: {
+            'location': '/repositories/1/security-advisories?state=published',
+          });
+        }
+        return http.Response('[]', 200);
+      });
+      final github = GitHubClient(fetcherFor(client),
+          apiBase: Endpoints.defaults.githubApi, token: 'tkn');
+      await github
+          .getAllPages(github.endpoint('/repos/old/name/security-advisories'));
+      expect(seen, hasLength(2));
+      expect(seen.last.toString(),
+          'https://api.github.com/repositories/1/security-advisories?state=published');
+    });
+
+    test(
+        'a redirect to another origin is not followed, and the message names '
+        'both origins', () async {
       final seen = <Uri>[];
       final client = MockClient((req) async {
         seen.add(req.url);
@@ -125,9 +191,92 @@ void main() {
           apiBase: Endpoints.defaults.githubApi, token: 'tkn'));
       await expectLater(
           source.query([pkg('dio', '1.0.0')]),
-          throwsA(isA<UnexpectedResponse>().having((e) => e.message, 'message',
-              contains('redirected (HTTP 302 to evil.example)'))));
+          throwsA(isA<UnexpectedResponse>().having(
+              (e) => e.message,
+              'message',
+              allOf(contains('redirected (HTTP 302 to https://evil.example)'),
+                  contains('api.github.com')))));
       expect(seen, hasLength(1));
+    });
+
+    test(
+        'a redirect to the same host on another scheme or port is not followed',
+        () async {
+      for (final location in [
+        'http://api.github.com/advisories',
+        'https://api.github.com:8443/advisories',
+      ]) {
+        final seen = <Uri>[];
+        final client = MockClient((req) async {
+          seen.add(req.url);
+          return http.Response('', 301, headers: {'location': location});
+        });
+        final source = GitHubGlobalSource(GitHubClient(fetcherFor(client),
+            apiBase: Endpoints.defaults.githubApi, token: 'tkn'));
+        await expectLater(source.query([pkg('dio', '1.0.0')]),
+            throwsA(isA<UnexpectedResponse>()),
+            reason: location);
+        expect(seen, hasLength(1), reason: location);
+      }
+    });
+
+    test('a redirect to a URL with credentials in it is not followed',
+        () async {
+      final seen = <Uri>[];
+      final client = MockClient((req) async {
+        seen.add(req.url);
+        return http.Response('', 301,
+            headers: {'location': 'https://u:p@api.github.com/advisories'});
+      });
+      final source = GitHubGlobalSource(GitHubClient(fetcherFor(client),
+          apiBase: Endpoints.defaults.githubApi, token: 'tkn'));
+      await expectLater(
+          source.query([pkg('dio', '1.0.0')]),
+          throwsA(isA<UnexpectedResponse>().having((e) => e.message, 'message',
+              allOf(contains('credentials'), isNot(contains('u:p'))))));
+      expect(seen, hasLength(1));
+    });
+
+    test(
+        'a redirect to another origin on the second hop is refused after a '
+        'same-origin first hop', () async {
+      final seen = <Uri>[];
+      final client = MockClient((req) async {
+        seen.add(req.url);
+        return http.Response('', 301, headers: {
+          'location': req.url.path == '/advisories'
+              ? 'https://api.github.com/moved'
+              : 'https://evil.example/advisories',
+        });
+      });
+      final source = GitHubGlobalSource(GitHubClient(fetcherFor(client),
+          apiBase: Endpoints.defaults.githubApi, token: 'tkn'));
+      await expectLater(source.query([pkg('dio', '1.0.0')]),
+          throwsA(isA<UnexpectedResponse>()));
+      expect(seen.map((u) => u.host), ['api.github.com', 'api.github.com']);
+    });
+
+    test(
+        'after a followed redirect, a page link away from the origin is still '
+        'refused', () async {
+      final seen = <Uri>[];
+      final client = MockClient((req) async {
+        seen.add(req.url);
+        if (req.url.path == '/advisories') {
+          return http.Response('', 301,
+              headers: {'location': 'https://api.github.com/moved'});
+        }
+        return http.Response('[]', 200, headers: {
+          'link': '<https://evil.example/moved?page=2>; rel="next"',
+        });
+      });
+      final source = GitHubGlobalSource(GitHubClient(fetcherFor(client),
+          apiBase: Endpoints.defaults.githubApi, token: 'tkn'));
+      await expectLater(
+          source.query([pkg('dio', '1.0.0')]),
+          throwsA(isA<UnexpectedResponse>().having((e) => e.message, 'message',
+              contains('a page link points away from api.github.com'))));
+      expect(seen.map((u) => u.host).toSet(), {'api.github.com'});
     });
 
     test('an endpoint override must be https, except on localhost', () {
@@ -186,6 +335,93 @@ void main() {
           GitHubClient(fetcher, apiBase: Endpoints.defaults.githubApi));
       await expectLater(source.query([pkg('dio', '1.0.0')]),
           throwsA(isA<UnexpectedResponse>()));
+    });
+
+    test('a redirect chain stops after the hop limit', () async {
+      var calls = 0;
+      final client = MockClient((req) async {
+        calls++;
+        return http.Response('', 301,
+            headers: {'location': 'https://api.github.com/hop$calls'});
+      });
+      final source = GitHubGlobalSource(GitHubClient(fetcherFor(client),
+          apiBase: Endpoints.defaults.githubApi));
+      await expectLater(
+          source.query([pkg('dio', '1.0.0')]),
+          throwsA(isA<UnexpectedResponse>().having(
+              (e) => e.message, 'message', contains('more than 3 redirects'))));
+      expect(calls, HttpFetcher.maxRedirects + 1);
+    });
+
+    test('a redirect loop is an unexpected response, not an unreachable source',
+        () async {
+      var calls = 0;
+      final client = MockClient((req) async {
+        calls++;
+        return http.Response('', 302, headers: {
+          'location': req.url.path == '/advisories'
+              ? 'https://api.github.com/b'
+              : 'https://api.github.com/advisories',
+        });
+      });
+      final source = GitHubGlobalSource(GitHubClient(fetcherFor(client),
+          apiBase: Endpoints.defaults.githubApi));
+      await expectLater(source.query([pkg('dio', '1.0.0')]),
+          throwsA(isA<UnexpectedResponse>()));
+      // Not retried: maxRedirects + 1 requests, not twice that.
+      expect(calls, HttpFetcher.maxRedirects + 1);
+    });
+
+    test("a redirect's body is discarded under the size cap", () async {
+      var calls = 0;
+      final client = MockClient((req) async {
+        calls++;
+        return http.Response('x' * 200, 301,
+            headers: {'location': 'https://api.github.com/moved'});
+      });
+      final fetcher =
+          HttpFetcher(client, maxBodyBytes: 100, retryDelay: Duration.zero);
+      final source = GitHubGlobalSource(
+          GitHubClient(fetcher, apiBase: Endpoints.defaults.githubApi));
+      await expectLater(
+          source.query([pkg('dio', '1.0.0')]),
+          throwsA(isA<UnexpectedResponse>()
+              .having((e) => e.message, 'message', contains('larger than'))));
+      expect(calls, 1);
+    });
+
+    test(
+        'a redirect of a POST is not followed, and the message says it is a POST',
+        () async {
+      var calls = 0;
+      final client = MockClient((req) async {
+        calls++;
+        return http.Response('', 307,
+            headers: {'location': 'https://api.osv.dev/v1/querybatch'});
+      });
+      await expectLater(
+          OsvSource(fetcherFor(client), base: Endpoints.defaults.osvApi)
+              .query([pkg('dio', '1.0.0')]),
+          throwsA(isA<UnexpectedResponse>().having((e) => e.message, 'message',
+              contains('not followed for a POST'))));
+      expect(calls, 1);
+    });
+
+    test(
+        'a redirect without a Location header is an unexpected response, not '
+        'a crash', () async {
+      var calls = 0;
+      final client = MockClient((req) async {
+        calls++;
+        return http.Response('', 301);
+      });
+      final source = GitHubGlobalSource(GitHubClient(fetcherFor(client),
+          apiBase: Endpoints.defaults.githubApi));
+      await expectLater(
+          source.query([pkg('dio', '1.0.0')]),
+          throwsA(isA<UnexpectedResponse>().having(
+              (e) => e.message, 'message', contains('without a Location'))));
+      expect(calls, 1);
     });
   });
 
@@ -498,7 +734,51 @@ void main() {
       final client = MockClient((_) async => http.Response('{}', 404));
       final github = GitHubClient(fetcherFor(client),
           apiBase: Endpoints.defaults.githubApi);
-      expect(await RepositoryAdvisoryFetcher(github).fetch('no/such'), isNull);
+      expect(await RepositoryAdvisoryFetcher(github).fetch('no/such'),
+          isA<RepositoryMissing>());
+    });
+
+    test(
+        "a renamed repository's advisories are read from its new location "
+        'and keep the old name', () async {
+      final api = FakeApi()..movedRepos = {'cfug/dio': 42};
+      final source = RepositoryPackageSource(
+          PubDevClient(fetcherFor(api.client), base: Endpoints.defaults.pubDev),
+          RepositoryAdvisoryFetcher(githubFor(api)));
+      final result = await source.query([pkg('dio', '4.0.6')]);
+      final found =
+          result.advisories.singleWhere((a) => a.id == 'GHSA-9324-jv53-9cc8');
+      expect(found.repository, 'cfug/dio');
+      expect(
+          result.notes.single,
+          isA<RepositoryMoved>()
+              .having((n) => n.subject, 'subject', 'cfug/dio')
+              .having(
+                  (n) => n.readFrom,
+                  'readFrom',
+                  Uri.parse('https://api.github.com/repositories/42/'
+                      'security-advisories?state=published&per_page=100')));
+      expect(result.failures, 0);
+    });
+
+    test('a moved repository is fetched once per run', () async {
+      final api = FakeApi()..movedRepos = {'cfug/dio': 42};
+      final fetcher = RepositoryAdvisoryFetcher(githubFor(api));
+      await fetcher.fetch('cfug/dio');
+      final again = await fetcher.fetch('cfug/dio');
+      expect(again, isA<RepositoryRead>());
+      expect(api.requests.map((r) => r.url.path), [
+        '/repos/cfug/dio/security-advisories',
+        '/repositories/42/security-advisories',
+      ]);
+    });
+
+    test('a renamed SDK repository is still read', () async {
+      final api = FakeApi()..movedRepos = {'dart-lang/sdk': 7};
+      final advisories =
+          await SdkAdvisorySource(RepositoryAdvisoryFetcher(githubFor(api)))
+              .fetchAll();
+      expect(advisories.map((a) => a.id), contains('GHSA-frr6-h895-5pxp'));
     });
   });
 }

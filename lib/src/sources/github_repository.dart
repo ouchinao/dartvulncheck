@@ -8,28 +8,65 @@ import 'github_global.dart';
 import 'pool.dart';
 import 'pub_dev.dart';
 
+// A sealed type, not a nullable list: the callers must tell "no such
+// repository" from "read" apart, and a read has a second fact to carry
+// (where it was read from).
+sealed class RepositoryLookup {
+  const RepositoryLookup();
+}
+
+// One case for a 404, not two: GitHub answers 404 both for a repository that
+// does not exist and for one the token may not see, and does not say which.
+class RepositoryMissing extends RepositoryLookup {
+  const RepositoryMissing();
+}
+
+class RepositoryRead extends RepositoryLookup {
+  final List<Advisory> advisories;
+
+  // The URL that answered the first page, set only when it is not the one
+  // requested, as GitHub does for a renamed or transferred repository. The
+  // URL as answered, not trimmed here: what of it a CI log may show is the
+  // report's decision (I3).
+  final Uri? readFrom;
+
+  const RepositoryRead(this.advisories, {this.readFrom});
+}
+
 // Cached for one run only, never on disk: a stale "no problems" is worse
 // than more requests.
 class RepositoryAdvisoryFetcher {
   final GitHubClient github;
-  final _cache = <String, Future<List<Advisory>?>>{};
+  final _cache = <String, Future<RepositoryLookup>>{};
 
   RepositoryAdvisoryFetcher(this.github);
 
-  Future<List<Advisory>?> fetch(String repo) =>
+  // Keyed by the owner/repo pub.dev mapped, even when GitHub redirects it:
+  // see parseRepositoryAdvisory.
+  Future<RepositoryLookup> fetch(String repo) =>
       _cache.putIfAbsent(repo, () => _fetch(repo));
 
-  Future<List<Advisory>?> _fetch(String repo) async {
-    final items = await github.getAllPages(github.endpoint(
-        '/repos/$repo/security-advisories',
-        {'state': 'published', 'per_page': '100'}));
-    if (items == null) return null;
-    return [
-      for (final item in items)
-        if (parseRepositoryAdvisory(item, repo) case final a?) a,
-    ];
+  Future<RepositoryLookup> _fetch(String repo) async {
+    Uri? movedTo;
+    final items = await github.getAllPages(
+        github.endpoint('/repos/$repo/security-advisories',
+            {'state': 'published', 'per_page': '100'}),
+        onMoved: (url) => movedTo = url);
+    if (items == null) return const RepositoryMissing();
+    return RepositoryRead(
+      [
+        for (final item in items)
+          if (parseRepositoryAdvisory(item, repo) case final a?) a,
+      ],
+      readFrom: movedTo,
+    );
   }
 
+  // The advisory keeps the owner/repo pub.dev mapped, not the name GitHub
+  // redirected to: query() joins advisories to packages by the name pub.dev
+  // mapped (S4), _affectedInLock compares a.repository with
+  // SdkAdvisorySource.repositories, the Location reveals only a numeric id
+  // anyway, and the JSON's own html_url already links to the new name.
   static Advisory? parseRepositoryAdvisory(Object? json, String repo) {
     if (json is! Map) return null;
     final id = json['ghsa_id'];
@@ -131,11 +168,13 @@ class RepositoryPackageSource {
       List<String> repos) async {
     final fetched = await mapPool(repos, githubConcurrency, (repo) async {
       try {
-        final advisories = await fetcher.fetch(repo);
-        return (
-          advisories,
-          advisories == null ? RepositoryUnreadable(repo) : null,
-        );
+        return switch (await fetcher.fetch(repo)) {
+          RepositoryMissing() => (null, RepositoryUnreadable(repo)),
+          RepositoryRead(:final advisories, :final readFrom) => (
+              advisories,
+              readFrom == null ? null : RepositoryMoved(repo, readFrom),
+            ),
+        };
       } on RateLimited {
         rethrow;
       } on VulncheckException catch (e) {
@@ -208,12 +247,15 @@ class SdkAdvisorySource {
   Future<List<Advisory>> fetchAll() async {
     final out = <Advisory>[];
     for (final repo in repositories) {
-      final advisories = await fetcher.fetch(repo);
-      if (advisories == null) {
-        throw UnexpectedResponse(
-            GitHubClient.sourceName, 'the advisories of $repo returned 404');
+      switch (await fetcher.fetch(repo)) {
+        case RepositoryMissing():
+          throw UnexpectedResponse(
+              GitHubClient.sourceName, 'the advisories of $repo returned 404');
+        // readFrom is dropped, not reported: this stage has no notes
+        // channel, and a renamed SDK repository is read all the same.
+        case RepositoryRead(:final advisories):
+          out.addAll(advisories);
       }
-      out.addAll(advisories);
     }
     return out;
   }

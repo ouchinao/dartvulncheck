@@ -269,6 +269,54 @@ void main() {
         'repository advisory lookups failed'.allMatches(r.err), hasLength(1));
   });
 
+  test(
+      "a renamed repository's advisories are still found, with no lookup "
+      'warning', () async {
+    makeProject(tmp, 'app', 'app.lock');
+    FakeApi api() => FakeApi()
+      ..extraAdvisories['cfug/dio'] = [
+        repositoryAdvisoryJson('GHSA-mmmm-oooo-vvvv',
+            repo: 'cfug/dio',
+            summary: 'Only in the repository, not in the global database',
+            vulnerabilities: [
+              vulnerabilityJson(
+                  ecosystem: 'pub', name: 'dio', range: '< 5.0.0'),
+            ]),
+      ];
+    final moved = await run(['app', '--no-sdk'],
+        api: api()..movedRepos = {'cfug/dio': 123});
+    final inPlace = await run(['app', '--no-sdk'], api: api());
+    expect(moved.out, contains('GHSA-9324-jv53-9cc8'));
+    expect(moved.out, contains('GHSA-mmmm-oooo-vvvv'));
+    // The same output as a repository in place, not only the absence of the
+    // lookup warning: a move must add nothing outside --verbose.
+    expect(moved.out, inPlace.out);
+    expect(moved.err, inPlace.err);
+    expect(moved.code, inPlace.code);
+    expect(moved.api.requests.map((q) => q.url.path),
+        contains('/repositories/123/security-advisories'));
+  });
+
+  test('--verbose names the repository that was read under a new location',
+      () async {
+    makeProject(tmp, 'app', 'app.lock');
+    final r = await run(['app', '--no-sdk', '--verbose'],
+        api: FakeApi()..movedRepos = {'cfug/dio': 123});
+    expect(
+        r.err,
+        contains('cfug/dio: renamed or transferred; advisories were read from '
+            'https://api.github.com/repositories/123/security-advisories'));
+  });
+
+  test('a renamed SDK repository no longer fails the SDK check', () async {
+    makeProject(tmp, 'app', 'app.lock');
+    final r =
+        await run(['app'], api: FakeApi()..movedRepos = {'dart-lang/sdk': 1});
+    expect(r.code, isNot(ExitCodes.error));
+    expect(r.err, isNot(contains('dartvulncheck: SDK:')));
+    expect(r.out, contains('GHSA-frr6-h895-5pxp'));
+  });
+
   test('a 401 from GitHub blames the token and does not fall back to OSV',
       () async {
     makeProject(tmp, 'app', 'app.lock');

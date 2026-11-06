@@ -42,7 +42,7 @@ It reads `pubspec.lock`, so run `dart pub get` (or `flutter pub get`) first.
 | `--sdk-version <ver>` | Pass the Flutter version by hand | `.fvmrc` (or `.fvm/fvm_config.json`) → `flutter --version` → `dart --version` |
 | `--no-sdk` | Do not check the SDK | Checked |
 | `--no-transitive` | Do not check transitive dependencies | Checked |
-| `--verbose` | Show how many packages were queried and ignored, and which could not be looked up | Off |
+| `--verbose` | Show how many packages were queried and ignored, which could not be looked up, and which package repositories had moved | Off |
 
 ### Exit codes
 
@@ -96,6 +96,8 @@ vulncheck:
 | Fallback | OSV.dev (`POST /v1/querybatch`) | Used only when GitHub is unreachable or answers something that is not an advisory list. Not on rate limiting or a rejected token: those need a fix on your side |
 
 Base URLs can be overridden with `DARTVULNCHECK_GITHUB_API_URL`, `DARTVULNCHECK_OSV_API_URL` and `DARTVULNCHECK_PUB_URL` (for tests and GitHub Enterprise). Overrides must be `https`; `http` is accepted for localhost only, and every override in effect is reported on stderr.
+
+A redirect is followed only when it stays on the same origin as the request (GitHub answers with one for a renamed or transferred repository); a redirect to another host is refused and reported, so an override must name the host that answers.
 
 ## Limitations
 

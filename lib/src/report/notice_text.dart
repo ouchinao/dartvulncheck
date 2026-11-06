@@ -41,7 +41,21 @@ String describeNote(LookupNote n) => switch (n) {
         'no known GitHub repository, repository advisories not checked',
       RepositoryUnreadable() => 'advisories could not be read',
       LookupFailed(:final error) => error.message,
+      // The origin and path, not the URL as answered: this line ends up in
+      // a CI log (I3), and the query only repeats the request's own.
+      RepositoryMoved(:final readFrom) =>
+        'renamed or transferred; advisories were read from '
+            '${_originAndPath(readFrom)}',
     };
+
+// Uri(...) with the parts wanted, not replace(query: ''): that leaves a
+// trailing '?'. The port is kept only when the URL named one.
+String _originAndPath(Uri url) => Uri(
+        scheme: url.scheme,
+        host: url.host,
+        port: url.hasPort ? url.port : null,
+        path: url.path)
+    .toString();
 
 String describeReleaseUnknown(ReleaseUnknown s) =>
     'release check skipped: ${s.cause.message}';

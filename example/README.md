@@ -18,6 +18,8 @@ vulncheck:
 
 `GITHUB_TOKEN` lets the repository-advisory stage run and raises the API rate limit; the default Actions token is enough. Add a weekly `schedule` trigger as well: new advisories appear even when the code does not change.
 
+If the project has an `.fvmrc`, pin the action to the same version with `flutter-version:`; otherwise the Dart version of the pinned release is looked up in Flutter's release manifest.
+
 ## On a developer machine
 
 ```sh

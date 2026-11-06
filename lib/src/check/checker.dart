@@ -4,12 +4,15 @@ import '../lockfile/lockfile.dart';
 import '../match/package_matcher.dart';
 import '../match/sdk_matcher.dart';
 import '../model/advisory.dart';
+import '../model/bundled_dart.dart';
 import '../model/errors.dart';
 import '../model/finding.dart';
 import '../model/notices.dart';
 import '../model/package_ref.dart';
+import '../model/sdk_info.dart';
 import '../sdk/sdk_detector.dart';
 import '../sources/advisory_source.dart';
+import '../sources/flutter_releases.dart';
 import '../sources/github_repository.dart';
 import 'result.dart';
 
@@ -42,6 +45,7 @@ class Checker {
   final RepositoryPackageSource? repository;
   final SdkAdvisorySource sdkAdvisories;
   final SdkDetector sdkDetector;
+  final FlutterReleases flutterReleases;
   final void Function(Warning warning) onWarning;
 
   Checker({
@@ -49,6 +53,7 @@ class Checker {
     this.repository,
     required this.sdkAdvisories,
     required this.sdkDetector,
+    required this.flutterReleases,
     required this.onWarning,
   });
 
@@ -109,7 +114,7 @@ class Checker {
         flutterOverride: sdkCheck.flutterVersion,
         projectDirs: [...options.directories, '.']);
     detection.warnings.forEach(onWarning);
-    final info = detection.info;
+    var info = detection.info;
     if (info == null) return (const SdkNotFound(), const <Advisory>[]);
     final List<Advisory> advisories;
     try {
@@ -117,10 +122,33 @@ class Checker {
     } on VulncheckException catch (e) {
       return (SdkFailed(info, e), const <Advisory>[]);
     }
+    // Looked up here, after the advisories and only when one needs it, not
+    // in SdkDetector for every pin: only sources/ touches the network, and
+    // there is no download with --no-sdk, when the SDK list could not be
+    // read, when the Dart version is known, or when no advisory names
+    // Dart.
     if (info.dart == null && hasDartAdvisories(advisories)) {
-      onWarning(const DartVersionUnknown());
+      info = await _withBundledDart(info);
     }
     return (SdkChecked(info), advisories);
+  }
+
+  // The pinned Flutter version is mapped, never the one on PATH (S3). A
+  // missing answer is a warning, not an error: the run is then where it
+  // was without the lookup.
+  Future<SdkInfo> _withBundledDart(SdkInfo info) async {
+    final flutter = info.flutter;
+    final lookup = flutter == null
+        ? const BundledDartNotLookedUp()
+        : await flutterReleases.bundledDart(flutter, channel: info.channel);
+    switch (lookup) {
+      case BundledDartFound(:final dart, :final channel):
+        return info.withDart(dart,
+            from: SdkOrigin.flutterReleases, channel: channel);
+      case BundledDartMissing():
+        onWarning(DartVersionUnknown(lookup));
+        return info;
+    }
   }
 
   _Load _load(String dir, CheckOptions options) {

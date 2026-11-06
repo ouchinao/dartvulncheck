@@ -1,5 +1,6 @@
 import 'package:pub_semver/pub_semver.dart';
 
+import 'bundled_dart.dart';
 import 'errors.dart';
 import 'sdk_info.dart';
 
@@ -28,7 +29,8 @@ class FvmConfigUnreadable extends Warning {
 }
 
 class DartVersionUnknown extends Warning {
-  const DartVersionUnknown();
+  final BundledDartMissing why;
+  const DartVersionUnknown(this.why);
 }
 
 class NoGitHubToken extends Warning {

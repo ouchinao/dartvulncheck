@@ -425,6 +425,132 @@ void main() {
     });
   });
 
+  group('Flutter release manifest', () {
+    final manifest = fixtureJson('responses/flutter_releases_linux.json');
+    BundledDart parse(String flutter, {String? channel}) =>
+        FlutterReleases.parse(manifest, Version.parse(flutter),
+            channel: channel);
+
+    test('a stable Flutter version maps to the Dart SDK it bundles', () {
+      expect(
+          parse('3.47.8'),
+          isA<BundledDartFound>()
+              .having((b) => b.dart, 'dart', Version.parse('3.13.7'))
+              .having((b) => b.channel, 'channel', 'stable'));
+      expect(
+          parse('3.47.6'),
+          isA<BundledDartFound>()
+              .having((b) => b.dart, 'dart', Version.parse('3.13.5')));
+    });
+
+    test('a beta Flutter version maps to the pre-release Dart in its build',
+        () {
+      expect(
+          parse('3.50.0-0.1.pre'),
+          isA<BundledDartFound>()
+              .having((b) => b.dart, 'dart', Version.parse('3.14.0-315.1.beta'))
+              .having((b) => b.channel, 'channel', 'beta'));
+    });
+
+    test(
+        'a version released on two channels with one Dart version is found, '
+        'and its channel is known only when asked for', () {
+      expect(
+          parse('2.0.0'),
+          isA<BundledDartFound>()
+              .having((b) => b.dart, 'dart', Version.parse('2.12.0'))
+              .having((b) => b.channel, 'channel', isNull));
+      expect(
+          parse('2.0.0', channel: 'stable'),
+          isA<BundledDartFound>()
+              .having((b) => b.channel, 'channel', 'stable'));
+    });
+
+    test('a version listed without a Dart SDK version is not recorded', () {
+      expect(parse('1.22.6'), isA<BundledDartNotRecorded>());
+    });
+
+    test(
+        'a version the manifest does not list is not listed, and entries '
+        'that are not versions are skipped', () {
+      expect(parse('9.9.9'), isA<BundledDartNotListed>());
+      expect(
+          (manifest as Map)['releases'],
+          contains(
+              predicate((e) => (e as Map)['version'] == 'v1.12.13+hotfix.9')));
+    });
+
+    test('entries that disagree on the Dart version are not guessed from', () {
+      final doubled = {
+        'releases': [
+          {
+            'version': '3.47.8',
+            'channel': 'stable',
+            'dart_sdk_version': '9.0.0'
+          },
+          {
+            'version': '3.47.8',
+            'channel': 'stable',
+            'dart_sdk_version': '3.13.7'
+          },
+        ],
+      };
+      expect(
+          FlutterReleases.parse(doubled, Version.parse('3.47.8')),
+          isA<BundledDartUnavailable>().having(
+              (b) => b.cause.message, 'cause', contains('several Dart SDK')));
+    });
+
+    test('a manifest without a releases list is unavailable', () {
+      expect(
+          FlutterReleases.parse(
+              {'current_release': {}}, Version.parse('3.47.8')),
+          isA<BundledDartUnavailable>());
+    });
+
+    test(
+        'an unreachable manifest, a bad status and a body that is not JSON '
+        'are unavailable with their cause, never thrown', () async {
+      for (final (status, body) in [(503, ''), (200, 'not json')]) {
+        final client = MockClient((_) async => http.Response(body, status));
+        final releases = FlutterReleases(
+            HttpFetcher(client, retryDelay: Duration.zero),
+            base: Endpoints.defaults.flutterReleases);
+        expect(await releases.bundledDart(Version.parse('3.47.8')),
+            isA<BundledDartUnavailable>(),
+            reason: '$status $body');
+      }
+    });
+
+    test(
+        'the manifest is asked with a GET of releases_linux.json under the '
+        'base, with no token and nothing of the pin in the URL', () async {
+      final api = FakeApi();
+      final releases = FlutterReleases(fetcherFor(api.client),
+          base: Endpoints.defaults.flutterReleases);
+      await releases.bundledDart(Version.parse('3.47.8'));
+      final request = api.requests.single;
+      expect(request.method, 'GET');
+      expect(request.url.toString(),
+          'https://storage.googleapis.com/flutter_infra_release/releases/releases_linux.json');
+      expect(request.headers.keys.map((k) => k.toLowerCase()),
+          isNot(contains('authorization')));
+    });
+
+    test('DARTVULNCHECK_FLUTTER_RELEASES_URL overrides the base', () {
+      final endpoints = Endpoints.fromEnvironment({
+        'DARTVULNCHECK_FLUTTER_RELEASES_URL': 'https://mirror.example/flutter'
+      });
+      expect(endpoints.flutterReleases,
+          Uri.parse('https://mirror.example/flutter'));
+      expect(endpoints.overrides.keys, ['DARTVULNCHECK_FLUTTER_RELEASES_URL']);
+      expect(
+          () => Endpoints.fromEnvironment(
+              {'DARTVULNCHECK_FLUTTER_RELEASES_URL': 'http://mirror.example/'}),
+          throwsA(isA<InvalidEndpoint>()));
+    });
+  });
+
   group('withdrawn advisories', () {
     test('a withdrawn advisory in the global database is dropped', () async {
       final api = FakeApi();

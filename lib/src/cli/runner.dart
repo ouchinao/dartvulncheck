@@ -13,6 +13,7 @@ import '../report/verbose_report.dart';
 import '../sdk/process_runner.dart';
 import '../sdk/sdk_detector.dart';
 import '../sources/fallback.dart';
+import '../sources/flutter_releases.dart';
 import '../sources/github_client.dart';
 import '../sources/github_global.dart';
 import '../sources/github_repository.dart';
@@ -133,6 +134,14 @@ class Runner {
       repository: repository,
       sdkAdvisories: SdkAdvisorySource(repoFetcher),
       sdkDetector: SdkDetector(processRunner),
+      // A fetcher of its own with a short timeout, not the check's: a
+      // network that blocks the manifest's host must not hold an FVM run
+      // for a minute to print a warning; 10 s rather than the release
+      // check's 5 because this lookup decides findings.
+      flutterReleases: FlutterReleases(
+          HttpFetcher(client,
+              timeout: const Duration(seconds: 10), retryDelay: retryDelay),
+          base: endpoints.flutterReleases),
       onWarning: _warn,
     );
   }

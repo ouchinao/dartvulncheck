@@ -1,3 +1,4 @@
+import '../model/bundled_dart.dart';
 import '../model/notices.dart';
 import '../model/release.dart';
 import 'labels.dart';
@@ -12,9 +13,9 @@ String describeWarning(Warning w) => switch (w) {
       SdkNotDetected() =>
         'the Flutter/Dart SDK version is unknown, so the SDK was not '
             'checked. Without `flutter` on PATH, pass it with --sdk-version',
-      DartVersionUnknown() =>
+      DartVersionUnknown(:final why) =>
         'the Dart SDK version is unknown, so Dart-only SDK advisories were '
-            'not checked',
+            'not checked${_whyUnknown(why)}',
       NoGitHubToken() =>
         'GITHUB_TOKEN is not set, so repository advisories (published '
             'before GitHub review) were not checked',
@@ -59,3 +60,15 @@ String _originAndPath(Uri url) => Uri(
 
 String describeReleaseUnknown(ReleaseUnknown s) =>
     'release check skipped: ${s.cause.message}';
+
+// Appended to the line, not a line of its own: a CI grep for the leading
+// phrase keeps matching, and the reason is what changes from run to run.
+String _whyUnknown(BundledDartMissing why) => switch (why) {
+      BundledDartNotLookedUp() => '',
+      BundledDartNotListed(:final flutter) =>
+        ': Flutter $flutter is not in the Flutter release manifest',
+      BundledDartNotRecorded(:final flutter) =>
+        ': the Flutter release manifest records no Dart SDK version for '
+            'Flutter $flutter',
+      BundledDartUnavailable(:final cause) => ': ${cause.message}',
+    };

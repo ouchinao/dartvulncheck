@@ -27,6 +27,11 @@ class FakeApi {
   Map<String, String> githubHeaders = const {};
   int? osvStatus;
   int? pubDevStatus;
+  int? flutterReleasesStatus;
+
+  // Prepended to the recorded manifest, not kept as a hand-written one: the
+  // fixture stays real, and a synthetic entry sits in the test that needs it.
+  List<Object?> extraFlutterReleases = [];
 
   // Unset by default, not the running version: a test that did not ask for
   // a release notice then cannot get one, whatever version is running.
@@ -61,6 +66,11 @@ class FakeApi {
       case 'api.osv.dev':
         if (osvStatus != null) return http.Response('', osvStatus!);
         return _osv(request);
+      case 'storage.googleapis.com':
+        if (flutterReleasesStatus != null) {
+          return http.Response('', flutterReleasesStatus!);
+        }
+        return _flutterReleases(url);
     }
     return http.Response('not found', 404);
   }
@@ -117,6 +127,19 @@ class FakeApi {
       if (file != null) ...fixtureJson('responses/$file') as List<Object?>,
       ...?extraAdvisories[repo],
     ]);
+  }
+
+  // Matched on the file name, not the full path: the e2e loopback server
+  // rewrites the base path.
+  http.Response _flutterReleases(Uri url) {
+    if (!url.path.endsWith('/releases_linux.json')) {
+      return http.Response('', 404);
+    }
+    final doc = fixtureJson('responses/flutter_releases_linux.json') as Map;
+    return _json({
+      ...doc,
+      'releases': [...extraFlutterReleases, ...doc['releases'] as List],
+    });
   }
 
   http.Response _pubDev(Uri url) {

@@ -1,6 +1,13 @@
 import 'package:pub_semver/pub_semver.dart';
 
-enum SdkOrigin { override, fvmrc, fvmConfig, flutterCommand, dartCommand }
+enum SdkOrigin {
+  override,
+  fvmrc,
+  fvmConfig,
+  flutterCommand,
+  dartCommand,
+  flutterReleases,
+}
 
 class SdkInfo {
   final Version? flutter;

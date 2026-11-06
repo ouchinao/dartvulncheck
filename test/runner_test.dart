@@ -424,7 +424,11 @@ void main() {
       'GITHUB_TOKEN': 'tkn',
       'DARTVULNCHECK_OSV_API_URL': 'https://osv.internal.example',
     });
-    expect(r.err, contains('DARTVULNCHECK_OSV_API_URL is set'));
+    expect(
+        r.err,
+        contains('DARTVULNCHECK_OSV_API_URL is set: requests go to '
+            'https://osv.internal.example'));
+    expect(r.err, isNot(contains('token')));
     expect(r.code, ExitCodes.vulnerable);
 
     final refused = await run([
@@ -473,6 +477,20 @@ void main() {
       expect(r.err, contains('release check skipped: '));
       expect(r.code, ExitCodes.ok);
     });
+  });
+
+  test('only the GitHub override is said to carry the token', () {
+    expect(
+        describeWarning(EndpointOverridden(
+            'DARTVULNCHECK_GITHUB_API_URL', Uri.parse('https://ghe.example'),
+            carriesToken: true)),
+        'DARTVULNCHECK_GITHUB_API_URL is set: requests, and the token with '
+        'them, go to https://ghe.example');
+    expect(
+        describeWarning(EndpointOverridden(
+            'DARTVULNCHECK_PUB_URL', Uri.parse('https://pub.example'),
+            carriesToken: false)),
+        'DARTVULNCHECK_PUB_URL is set: requests go to https://pub.example');
   });
 
   test('--help wins over every other option', () async {

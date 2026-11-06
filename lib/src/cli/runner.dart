@@ -74,8 +74,12 @@ class Runner {
       err.writeln('dartvulncheck: ${e.message}');
       return ExitCodes.error;
     }
-    endpoints.overrides
-        .forEach((variable, url) => _warn(EndpointOverridden(variable, url)));
+    // Decided here, not recorded by Endpoints: Endpoints knows the URLs,
+    // and the token is handed to the GitHub client below and to no other
+    // source.
+    endpoints.overrides.forEach((variable, url) => _warn(EndpointOverridden(
+        variable, url,
+        carriesToken: variable == 'DARTVULNCHECK_GITHUB_API_URL')));
 
     // Asked alongside the check, not before it: a slow pub.dev then costs
     // nothing unless it is slower than the check itself.

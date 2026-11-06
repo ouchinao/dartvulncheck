@@ -63,7 +63,13 @@ class ThirdPartyHostedChecked extends Warning {
 class EndpointOverridden extends Warning {
   final String variable;
   final Uri url;
-  const EndpointOverridden(this.variable, this.url);
+
+  // Carried on the notice, not derived from the variable's name in report/:
+  // which override the token travels with is decided where the token is
+  // handed out, and the wording must not claim it for the others.
+  final bool carriesToken;
+  const EndpointOverridden(this.variable, this.url,
+      {required this.carriesToken});
 }
 
 class NewerReleaseAvailable extends Warning {

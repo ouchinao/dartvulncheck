@@ -31,8 +31,9 @@ String describeWarning(Warning w) => switch (w) {
       NewerReleaseAvailable(:final current, :final latest) =>
         'dartvulncheck $latest is available; this run used $current '
             '(https://pub.dev/packages/dartvulncheck/changelog)',
-      EndpointOverridden(:final variable, :final url) =>
-        '$variable is set: requests, and the token with them, go to $url',
+      EndpointOverridden(:final variable, :final url, :final carriesToken) =>
+        '$variable is set: requests'
+            '${carriesToken ? ', and the token with them,' : ''} go to $url',
     };
 
 String describeNote(LookupNote n) => switch (n) {

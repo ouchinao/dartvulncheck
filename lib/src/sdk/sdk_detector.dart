@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:pub_semver/pub_semver.dart';
 
 import '../model/notices.dart';
 import '../model/sdk_info.dart';
@@ -27,7 +26,7 @@ class SdkDetector {
     final warnings = <Warning>[];
 
     if (flutterOverride != null) {
-      final v = _parseVersion(flutterOverride);
+      final v = parseSdkVersionText(flutterOverride);
       if (v == null) {
         warnings.add(SdkVersionOverrideInvalid(flutterOverride));
       } else {
@@ -106,7 +105,7 @@ class SdkDetector {
         warnings.add(FvmConfigUnreadable(f.path));
         continue;
       }
-      final v = _parseVersion('${json[key]}');
+      final v = parseSdkVersionText('${json[key]}');
       if (v != null) return (SdkInfo(flutter: v, origin: origin), warnings);
     }
     return (null, warnings);
@@ -125,8 +124,8 @@ class SdkDetector {
       return null;
     }
     if (json is! Map) return null;
-    final flutter = _parseVersion('${json['frameworkVersion']}');
-    final dart = _parseVersion('${json['dartSdkVersion']}');
+    final flutter = parseSdkVersionText('${json['frameworkVersion']}');
+    final dart = parseSdkVersionText('${json['dartSdkVersion']}');
     if (flutter == null && dart == null) return null;
     final channel = json['channel'];
     return SdkInfo(
@@ -137,21 +136,16 @@ class SdkDetector {
     );
   }
 
+  // The "(build ...)" group is captured with the version, not cut off at
+  // the first space: Flutter's bundled dart prints
+  // "3.14.0 (build 3.14.0-315.3.beta) (beta)", and the build is the version.
   static SdkInfo? parseDartVersion(String output) {
-    final m = RegExp(r'Dart SDK version:\s*(\S+)(?:\s*\((\w+)\))?')
+    final m = RegExp(r'Dart SDK version:\s*(\S+(?:\s*\(build [^)]*\))?)'
+            r'(?:\s*\((\w+)\))?')
         .firstMatch(output);
     if (m == null) return null;
-    final v = _parseVersion(m.group(1)!);
+    final v = parseSdkVersionText(m.group(1)!);
     if (v == null) return null;
     return SdkInfo(dart: v, channel: m.group(2), origin: SdkOrigin.dartCommand);
-  }
-
-  static Version? _parseVersion(String text) {
-    final token = text.trim().split(RegExp(r'\s+')).first;
-    try {
-      return Version.parse(token);
-    } on FormatException {
-      return null;
-    }
   }
 }

@@ -21,10 +21,27 @@ void main() {
     expect(d.info!.origin, SdkOrigin.flutterCommand);
   });
 
-  test('"3.13.5 (build 3.13.5)" keeps only the first token', () {
+  test('"3.13.5 (build 3.13.5)" reads as 3.13.5', () {
     final info = SdkDetector.parseFlutterMachineVersion(
         fixture('sdk/flutter_version_machine.txt'));
     expect(info!.dart, Version.parse('3.13.5'));
+  });
+
+  test('"3.14.0 (build 3.14.0-315.1.beta)" reads as the build, a pre-release',
+      () {
+    expect(parseSdkVersionText('3.14.0 (build 3.14.0-315.1.beta)'),
+        Version.parse('3.14.0-315.1.beta'));
+    expect(parseSdkVersionText('3.13.7'), Version.parse('3.13.7'));
+    expect(parseSdkVersionText(''), isNull);
+    expect(parseSdkVersionText('stable'), isNull);
+  });
+
+  test('dart --version in the build form gives the build and the channel', () {
+    final info = SdkDetector.parseDartVersion(
+        'Dart SDK version: 3.14.0 (build 3.14.0-315.3.beta) (beta) '
+        '(Wed Oct 29 2026) on "linux_x64"');
+    expect(info!.dart, Version.parse('3.14.0-315.3.beta'));
+    expect(info.channel, 'beta');
   });
 
   test('an upgrade banner before the JSON is skipped', () {

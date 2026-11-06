@@ -8,7 +8,31 @@ class SdkInfo {
   final String? channel;
   final SdkOrigin origin;
 
-  const SdkInfo({this.flutter, this.dart, this.channel, required this.origin});
+  // Its own origin, not `origin` for both: a pin names only Flutter, and
+  // the Dart version then comes from elsewhere, which the report must say
+  // (S3, R1). Not nullable: null would mean both "the same as origin" and
+  // "no Dart version".
+  final SdkOrigin dartOrigin;
+
+  const SdkInfo({
+    this.flutter,
+    this.dart,
+    this.channel,
+    required this.origin,
+    SdkOrigin? dartOrigin,
+  }) : dartOrigin = dartOrigin ?? origin;
+
+  // A copy, not a mutable field: an SdkInfo is passed around as a fact.
+  // The channel is taken only when none is known: a pin that names one is
+  // not second-guessed.
+  SdkInfo withDart(Version dart, {required SdkOrigin from, String? channel}) =>
+      SdkInfo(
+        flutter: flutter,
+        dart: dart,
+        channel: this.channel ?? channel,
+        origin: origin,
+        dartOrigin: from,
+      );
 }
 
 // The build token, not the first one: Flutter's beta and dev builds write

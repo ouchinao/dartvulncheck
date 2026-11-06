@@ -204,6 +204,20 @@ void main() {
     expect(r.code, ExitCodes.vulnerable);
   });
 
+  test(
+      'a .fvmrc that matches flutter on PATH checks Dart-only advisories and '
+      'names both origins', () async {
+    final dir = makeProject(tmp, 'app', 'app.lock');
+    File(p.join(dir.path, '.fvmrc')).writeAsStringSync('{"flutter": "3.47.6"}');
+    final r = await run(['app']);
+    expect(
+        r.out,
+        startsWith(
+            'Flutter 3.47.6 stable (.fvmrc) / Dart 3.13.5 (flutter --version)'));
+    expect(r.err, isNot(contains('Dart SDK version is unknown')));
+    expect(r.out, contains('GHSA-frr6-h895-5pxp'));
+  });
+
   test('--sdk-version is used when flutter is not installed', () async {
     makeProject(tmp, 'app', 'app.lock');
     final r = await run(['app', '--sdk-version', '3.47.6'],

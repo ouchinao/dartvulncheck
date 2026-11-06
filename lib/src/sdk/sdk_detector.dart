@@ -63,20 +63,37 @@ class SdkDetector {
   // `flutter` on PATH is still asked when the version came from elsewhere,
   // not skipped: a .fvmrc left in a checkout that flutter-action builds, or a
   // forged one, names a version nothing builds with, and the difference is
-  // the only sign of it.
+  // the only sign of it. When PATH has the same release, its Dart version
+  // and channel are the pin's too (one Flutter release bundles one Dart
+  // SDK). From a different release nothing is taken: with FVM the pin is
+  // what builds, and PATH only confirms it (S3).
   Future<SdkDetection> _chosenElsewhere(
       SdkInfo chosen, List<Warning> warnings) async {
-    final mismatch = await _mismatchWithPath(chosen);
-    return SdkDetection(chosen, [...warnings, if (mismatch != null) mismatch]);
+    final onPath = await _flutterOnPath();
+    if (onPath == null || onPath.flutter == null) {
+      return SdkDetection(chosen, warnings);
+    }
+    if (onPath.flutter != chosen.flutter) {
+      return SdkDetection(chosen, [
+        ...warnings,
+        SdkVersionMismatch(
+            chosen: chosen.flutter!,
+            onPath: onPath.flutter!,
+            origin: chosen.origin),
+      ]);
+    }
+    final dart = onPath.dart;
+    if (dart == null) return SdkDetection(chosen, warnings);
+    return SdkDetection(
+        chosen.withDart(dart,
+            from: SdkOrigin.flutterCommand, channel: onPath.channel),
+        warnings);
   }
 
-  Future<Warning?> _mismatchWithPath(SdkInfo chosen) async {
+  Future<SdkInfo?> _flutterOnPath() async {
     final output = await runner.run('flutter', ['--version', '--machine']);
     if (output == null || output.exitCode != 0) return null;
-    final onPath = parseFlutterMachineVersion(output.stdout)?.flutter;
-    if (onPath == null || onPath == chosen.flutter) return null;
-    return SdkVersionMismatch(
-        chosen: chosen.flutter!, onPath: onPath, origin: chosen.origin);
+    return parseFlutterMachineVersion(output.stdout);
   }
 
   // FVM's pin before `flutter` on PATH: with FVM the pin is what builds.

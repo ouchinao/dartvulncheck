@@ -57,17 +57,47 @@ void main() {
         await SdkDetector(flutterInstalled()).detect(projectDirs: [tmp.path]);
     expect(d.info!.flutter, Version.parse('3.47.8'));
     expect(d.info!.origin, SdkOrigin.fvmrc);
+    expect(d.info!.dart, isNull);
+    expect(d.info!.dartOrigin, SdkOrigin.fvmrc);
     expect(
         d.warnings.single,
         isA<SdkVersionMismatch>()
             .having((w) => w.onPath, 'onPath', Version.parse('3.47.6')));
   });
 
-  test('.fvmrc that agrees with flutter on PATH raises no warning', () async {
+  test(
+      '.fvmrc that agrees with flutter on PATH takes its Dart version and '
+      'channel, and raises no warning', () async {
     File(p.join(tmp.path, '.fvmrc')).writeAsStringSync('{"flutter": "3.47.6"}');
     final d =
         await SdkDetector(flutterInstalled()).detect(projectDirs: [tmp.path]);
     expect(d.info!.origin, SdkOrigin.fvmrc);
+    expect(d.info!.dart, Version.parse('3.13.5'));
+    expect(d.info!.dartOrigin, SdkOrigin.flutterCommand);
+    expect(d.info!.channel, 'stable');
+    expect(d.warnings, isEmpty);
+  });
+
+  test('--sdk-version that agrees with flutter on PATH takes its Dart version',
+      () async {
+    final d = await SdkDetector(flutterInstalled())
+        .detect(flutterOverride: '3.47.6', projectDirs: [tmp.path]);
+    expect(d.info!.origin, SdkOrigin.override);
+    expect(d.info!.dart, Version.parse('3.13.5'));
+    expect(d.info!.dartOrigin, SdkOrigin.flutterCommand);
+    expect(d.warnings, isEmpty);
+  });
+
+  test('a flutter on PATH that reports no Dart version leaves the pin as it is',
+      () async {
+    File(p.join(tmp.path, '.fvmrc')).writeAsStringSync('{"flutter": "3.47.6"}');
+    final runner = FakeProcessRunner({
+      'flutter': ProcessOutput(
+          0, '{"frameworkVersion": "3.47.6", "channel": "stable"}', ''),
+    });
+    final d = await SdkDetector(runner).detect(projectDirs: [tmp.path]);
+    expect(d.info!.dart, isNull);
+    expect(d.info!.dartOrigin, SdkOrigin.fvmrc);
     expect(d.warnings, isEmpty);
   });
 

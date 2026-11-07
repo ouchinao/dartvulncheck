@@ -427,16 +427,14 @@ void main() {
 
   group('Flutter release manifest', () {
     final manifest = fixtureJson('responses/flutter_releases_linux.json');
-    BundledDart parse(String flutter, {String? channel}) =>
-        FlutterReleases.parse(manifest, Version.parse(flutter),
-            channel: channel);
+    BundledDart parse(String flutter) =>
+        FlutterReleases.parse(manifest, Version.parse(flutter));
 
     test('a stable Flutter version maps to the Dart SDK it bundles', () {
       expect(
           parse('3.47.8'),
           isA<BundledDartFound>()
-              .having((b) => b.dart, 'dart', Version.parse('3.13.7'))
-              .having((b) => b.channel, 'channel', 'stable'));
+              .having((b) => b.dart, 'dart', Version.parse('3.13.7')));
       expect(
           parse('3.47.6'),
           isA<BundledDartFound>()
@@ -447,23 +445,16 @@ void main() {
         () {
       expect(
           parse('3.50.0-0.1.pre'),
-          isA<BundledDartFound>()
-              .having((b) => b.dart, 'dart', Version.parse('3.14.0-315.1.beta'))
-              .having((b) => b.channel, 'channel', 'beta'));
+          isA<BundledDartFound>().having(
+              (b) => b.dart, 'dart', Version.parse('3.14.0-315.1.beta')));
     });
 
-    test(
-        'a version released on two channels with one Dart version is found, '
-        'and its channel is known only when asked for', () {
+    test('a version released on two channels with one Dart version is found',
+        () {
       expect(
           parse('2.0.0'),
           isA<BundledDartFound>()
-              .having((b) => b.dart, 'dart', Version.parse('2.12.0'))
-              .having((b) => b.channel, 'channel', isNull));
-      expect(
-          parse('2.0.0', channel: 'stable'),
-          isA<BundledDartFound>()
-              .having((b) => b.channel, 'channel', 'stable'));
+              .having((b) => b.dart, 'dart', Version.parse('2.12.0')));
     });
 
     test('a version listed without a Dart SDK version is not recorded', () {
@@ -480,14 +471,12 @@ void main() {
               predicate((e) => (e as Map)['version'] == 'v1.12.13+hotfix.9')));
     });
 
-    test('entries that disagree on the Dart version are not guessed from', () {
+    test(
+        'entries that disagree on the Dart version are not guessed from, '
+        'whatever channels they sit on', () {
       final doubled = {
         'releases': [
-          {
-            'version': '3.47.8',
-            'channel': 'stable',
-            'dart_sdk_version': '9.0.0'
-          },
+          {'version': '3.47.8', 'channel': 'beta', 'dart_sdk_version': '9.0.0'},
           {
             'version': '3.47.8',
             'channel': 'stable',

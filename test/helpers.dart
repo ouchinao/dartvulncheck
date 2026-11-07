@@ -29,9 +29,10 @@ class FakeApi {
   int? pubDevStatus;
   int? flutterReleasesStatus;
 
-  // Prepended to the recorded manifest, not kept as a hand-written one: the
-  // fixture stays real, and a synthetic entry sits in the test that needs it.
-  List<Object?> extraFlutterReleases = [];
+  // Served in place of the recorded manifest when set, not spliced into it:
+  // the fixture stays real, and a test that needs a synthetic entry shows
+  // the whole document it runs against.
+  List<Object?>? flutterReleases;
 
   // Unset by default, not the running version: a test that did not ask for
   // a release notice then cannot get one, whatever version is running.
@@ -135,11 +136,9 @@ class FakeApi {
     if (!url.path.endsWith('/releases_linux.json')) {
       return http.Response('', 404);
     }
-    final doc = fixtureJson('responses/flutter_releases_linux.json') as Map;
-    return _json({
-      ...doc,
-      'releases': [...extraFlutterReleases, ...doc['releases'] as List],
-    });
+    return _json(flutterReleases == null
+        ? fixtureJson('responses/flutter_releases_linux.json')
+        : {'releases': flutterReleases});
   }
 
   http.Response _pubDev(Uri url) {

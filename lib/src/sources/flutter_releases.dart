@@ -23,7 +23,7 @@ class FlutterReleases {
 
   // Returned, not thrown: an unknown Dart version is a warning, and this
   // lookup must never reach the exit code (D4).
-  Future<BundledDart> bundledDart(Version flutter, {String? channel}) async {
+  Future<BundledDart> bundledDart(Version flutter) async {
     final url = base.replace(path: '${_trim(base.path)}/$manifestFile');
     try {
       // Through the fetcher alone, not the GitHub client: its headers carry
@@ -34,13 +34,13 @@ class FlutterReleases {
       if (response.statusCode != 200) {
         throw UnexpectedResponse(sourceName, 'HTTP ${response.statusCode}');
       }
-      return parse(decodeJson(response, sourceName), flutter, channel: channel);
+      return parse(decodeJson(response, sourceName), flutter);
     } on VulncheckException catch (e) {
       return BundledDartUnavailable(e);
     }
   }
 
-  static BundledDart parse(Object? json, Version flutter, {String? channel}) {
+  static BundledDart parse(Object? json, Version flutter) {
     final releases = json is Map ? json['releases'] : null;
     if (releases is! List) {
       return const BundledDartUnavailable(
@@ -51,15 +51,12 @@ class FlutterReleases {
         if (r is Map && _version(r['version']) == flutter) r,
     ];
     if (listed.isEmpty) return BundledDartNotListed(flutter);
-    // Narrowed by a known channel, not picked by position: a version can be
-    // listed on more than one channel (2.0.0 on beta and on stable).
-    final onChannel = [
-      for (final r in listed)
-        if (channel != null && r['channel'] == channel) r,
-    ];
-    final chosen = onChannel.isEmpty ? listed : onChannel;
+    // Every entry for the version, not the ones on a channel: nothing that
+    // reaches this lookup carries a channel except a `flutter` on PATH that
+    // printed no Dart version, and a version listed on two channels (2.0.0
+    // on beta and on stable) bundles one Dart SDK either way.
     final darts = {
-      for (final r in chosen)
+      for (final r in listed)
         if (r['dart_sdk_version'] case final String text)
           if (parseSdkVersionText(text) case final v?) v,
     };
@@ -70,11 +67,7 @@ class FlutterReleases {
       return BundledDartUnavailable(UnexpectedResponse(sourceName,
           'Flutter $flutter is listed with several Dart SDK versions'));
     }
-    final channels = {for (final r in chosen) r['channel']};
-    return BundledDartFound(darts.single,
-        channel: channels.length == 1 && channels.single is String
-            ? channels.single as String
-            : null);
+    return BundledDartFound(darts.single);
   }
 
   // Skipped, not an error: the oldest entries read "v1.12.13+hotfix.9",

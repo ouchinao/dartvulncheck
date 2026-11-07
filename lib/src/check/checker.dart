@@ -140,11 +140,14 @@ class Checker {
     final flutter = info.flutter;
     final lookup = flutter == null
         ? const BundledDartNotLookedUp()
-        : await flutterReleases.bundledDart(flutter, channel: info.channel);
+        : await flutterReleases.bundledDart(flutter);
     switch (lookup) {
-      case BundledDartFound(:final dart, :final channel):
-        return info.withDart(dart,
-            from: SdkOrigin.flutterReleases, channel: channel);
+      // The Dart version only, never the manifest's channel: the channel
+      // picks the per-channel clause for the Flutter version as well, so an
+      // entry on the wrong channel could hide a Flutter-range finding, and
+      // S6 promises the manifest cannot do that.
+      case BundledDartFound(:final dart):
+        return info.withDart(dart, from: SdkOrigin.flutterReleases);
       case BundledDartMissing():
         onWarning(DartVersionUnknown(lookup));
         return info;

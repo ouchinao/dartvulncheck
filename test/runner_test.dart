@@ -226,7 +226,7 @@ void main() {
         processes: nothingInstalled());
     expect(
         r.out,
-        startsWith('Flutter 3.47.6 stable (--sdk-version) / '
+        startsWith('Flutter 3.47.6 (--sdk-version) / '
             'Dart 3.13.5 (Flutter release manifest)'));
     expect(r.out, contains('GHSA-frr6-h895-5pxp  Flutter 3.47.6'));
     expect(r.err, isNot(contains('Dart SDK version is unknown')));
@@ -242,8 +242,30 @@ void main() {
     expect(
         r.out,
         startsWith(
-            'Flutter 3.47.8 stable (.fvmrc) / Dart 3.13.7 (Flutter release manifest)'));
+            'Flutter 3.47.8 (.fvmrc) / Dart 3.13.7 (Flutter release manifest)'));
     expect(r.out, isNot(contains('GHSA-frr6-h895-5pxp')));
+  });
+
+  test(
+      'a manifest entry on another channel cannot hide a Flutter-range '
+      'finding, and the report takes no channel from it', () async {
+    makeProject(tmp, 'app', 'no_hosted.lock');
+    final r = await run(['app', '--sdk-version', '3.47.6'],
+        api: FakeApi()
+          ..flutterReleases = [
+            {
+              'version': '3.47.6',
+              'channel': 'dev',
+              'dart_sdk_version': '3.13.5'
+            },
+          ],
+        processes: nothingInstalled());
+    expect(
+        r.out,
+        startsWith('Flutter 3.47.6 (--sdk-version) / '
+            'Dart 3.13.5 (Flutter release manifest)'));
+    expect(r.out, contains('GHSA-frr6-h895-5pxp  Flutter 3.47.6'));
+    expect(r.code, ExitCodes.vulnerable);
   });
 
   test(

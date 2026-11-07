@@ -11,8 +11,7 @@ sealed class BundledDart {
 
 class BundledDartFound extends BundledDart {
   final Version dart;
-  final String? channel;
-  const BundledDartFound(this.dart, {this.channel});
+  const BundledDartFound(this.dart);
 }
 
 // A sealed family of its own, not cases beside BundledDartFound: a warning

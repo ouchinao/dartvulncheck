@@ -21,8 +21,8 @@
   the manifest. `DARTVULNCHECK_FLUTTER_RELEASES_URL` overrides its base URL
   under the same https rule as the other overrides.
 - The report names where the Dart version came from when that is not where
-  the Flutter version came from: `Flutter 3.47.8 stable (.fvmrc) / Dart
-  3.13.7 (Flutter release manifest)`. The JSON `sdk` object gains
+  the Flutter version came from: `Flutter 3.47.8 (.fvmrc) / Dart 3.13.7
+  (Flutter release manifest)`. The JSON `sdk` object gains
   `dartOrigin`; the format version stays 1.
 - A Dart SDK version written `3.14.0 (build 3.14.0-315.1.beta)`, as
   `flutter --version` and `dart --version` print it on the beta channel, is

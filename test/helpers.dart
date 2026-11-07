@@ -34,6 +34,13 @@ class FakeApi {
 
   Set<String> forbiddenRepos = {};
 
+  // A 301 built here, not a recorded one: a redirect response is header-only,
+  // and `gh api` follows redirects itself, so one cannot be recorded. The
+  // owner/repo answers its old path with a 301 to /repositories/{id}/..., as
+  // GitHub does for a renamed or transferred one, and its recorded fixture is
+  // served at the new path.
+  Map<String, int> movedRepos = {};
+
   // Appended to the recorded response, not kept as hand-written fixture
   // files: the fixtures stay real, and a synthetic case sits in the test
   // that needs it.
@@ -77,18 +84,39 @@ class FakeApi {
     final m = RegExp(r'^/repos/([^/]+/[^/]+)/security-advisories$')
         .firstMatch(url.path);
     if (m != null) {
-      final file = switch (m.group(1)) {
-        'dart-lang/sdk' => 'github_repo_advisories_dart_sdk.json',
-        'flutter/flutter' => 'github_repo_advisories_flutter.json',
-        'cfug/dio' => 'github_repo_advisories_cfug_dio.json',
-        _ => null,
-      };
-      return _json([
-        if (file != null) ...fixtureJson('responses/$file') as List<Object?>,
-        ...?extraAdvisories[m.group(1)],
-      ]);
+      final repo = m.group(1)!;
+      if (movedRepos[repo] case final id?) {
+        // Absolute, same host, query preserved: the shape of GitHub's
+        // Location for a moved repository.
+        return http.Response('', 301, headers: {
+          'location': url
+              .replace(path: '/repositories/$id/security-advisories')
+              .toString(),
+        });
+      }
+      return _repositoryAdvisories(repo);
+    }
+    final byId = RegExp(r'^/repositories/(\d+)/security-advisories$')
+        .firstMatch(url.path);
+    if (byId != null) {
+      for (final MapEntry(key: repo, value: id) in movedRepos.entries) {
+        if ('$id' == byId.group(1)) return _repositoryAdvisories(repo);
+      }
     }
     return http.Response('{"message":"Not Found"}', 404);
+  }
+
+  http.Response _repositoryAdvisories(String repo) {
+    final file = switch (repo) {
+      'dart-lang/sdk' => 'github_repo_advisories_dart_sdk.json',
+      'flutter/flutter' => 'github_repo_advisories_flutter.json',
+      'cfug/dio' => 'github_repo_advisories_cfug_dio.json',
+      _ => null,
+    };
+    return _json([
+      if (file != null) ...fixtureJson('responses/$file') as List<Object?>,
+      ...?extraAdvisories[repo],
+    ]);
   }
 
   http.Response _pubDev(Uri url) {

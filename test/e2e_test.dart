@@ -36,6 +36,18 @@ void main() {
       final res = await api.handle(forwarded);
       req.response.statusCode = res.statusCode;
       req.response.headers.contentType = ContentType.json;
+      // A Location is forwarded, rewritten onto this server: FakeApi names
+      // api.github.com, which from here would be another origin and refused,
+      // and the point of forwarding it is to drive a hop through the real
+      // client.
+      if (res.headers['location'] case final location?) {
+        final target = Uri.parse(location);
+        req.response.headers.set(
+            'location',
+            Uri.http('${server.address.host}:${server.port}',
+                    '/${segments.first}${target.path}', target.queryParameters)
+                .toString());
+      }
       req.response.add(res.bodyBytes);
       await req.response.close();
     });
@@ -66,6 +78,18 @@ void main() {
     makeProject(tmp, 'app', 'no_hosted.lock');
     final r = await run(['app', '--sdk-version', '3.47.8']);
     expect(r.exitCode, ExitCodes.ok, reason: '${r.stdout}${r.stderr}');
+  });
+
+  test("a renamed repository's advisories are read through the real client",
+      () async {
+    makeProject(tmp, 'app', 'app.lock');
+    api.movedRepos = {'cfug/dio': 123};
+    addTearDown(() => api.movedRepos = {});
+    final r = await run(['app', '--no-sdk', '--verbose']);
+    expect(r.exitCode, ExitCodes.vulnerable, reason: '${r.stderr}');
+    expect(r.stdout, contains('GHSA-9324-jv53-9cc8'));
+    expect(r.stderr, isNot(contains('repository advisory lookups failed')));
+    expect(r.stderr, contains('cfug/dio: renamed or transferred'));
   });
 
   test('exit 3: vulnerabilities found', () async {

@@ -31,7 +31,11 @@ class GitHubClient {
 
   static const maxPages = 50;
 
-  Future<List<Object?>?> getAllPages(Uri first) async {
+  // A callback for a followed redirect, not a richer return type: it matches
+  // onFallback and onWarning, and leaves the 404-as-null contract and the
+  // global source untouched.
+  Future<List<Object?>?> getAllPages(Uri first,
+      {void Function(Uri readFrom)? onMoved}) async {
     final items = <Object?>[];
     Uri? url = first;
     var pages = 0;
@@ -41,6 +45,10 @@ class GitHubClient {
       }
       final response =
           await fetcher.get(url, headers: _headers, sourceName: sourceName);
+      // Checked on the first page only, not on every page: later pages come
+      // from Link and have no requested URL to compare with.
+      final answered = response.request?.url ?? url;
+      if (pages == 1 && answered != first) onMoved?.call(answered);
       if (response.statusCode == 404) return null;
       _throwIfRateLimited(response);
       if (response.statusCode == 401 || response.statusCode == 403) {
@@ -58,18 +66,13 @@ class GitHubClient {
       url = nextPage(response.headers['link']);
       // The token goes only where apiBase points. A `next` link to another
       // origin is not followed, however it got into the header.
-      if (url != null && !_sameOrigin(url)) {
+      if (url != null && !sameOrigin(url, apiBase)) {
         throw UnexpectedResponse(
             sourceName, 'a page link points away from ${apiBase.host}');
       }
     }
     return items;
   }
-
-  bool _sameOrigin(Uri url) =>
-      url.scheme == apiBase.scheme &&
-      url.host == apiBase.host &&
-      url.port == apiBase.port;
 
   void _throwIfRateLimited(http.Response response) {
     final status = response.statusCode;

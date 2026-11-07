@@ -91,3 +91,12 @@ class LookupFailed extends LookupNote {
   final VulncheckException error;
   const LookupFailed(super.subject, this.error);
 }
+
+// A note, not a Warning: a redirect is GitHub's normal answer for a renamed
+// or transferred repository, and a stderr line for it on every run is the
+// noise #10 reports; --verbose is where "what was checked against" lives
+// (R1). The subject is the owner/repo pub.dev mapped.
+class RepositoryMoved extends LookupNote {
+  final Uri readFrom;
+  const RepositoryMoved(super.subject, this.readFrom);
+}

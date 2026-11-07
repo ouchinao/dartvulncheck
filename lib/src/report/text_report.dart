@@ -15,11 +15,11 @@ String renderText(CheckResult result) {
   switch (result.sdk) {
     case SdkChecked(:final info):
       out
-        ..writeln('${_sdkLabel(info)} (${sdkOriginLabel(info.origin)})')
+        ..writeln(_sdkLine(info))
         ..writeln();
     case SdkFailed(:final info, :final error):
       out
-        ..writeln('${_sdkLabel(info)} (${sdkOriginLabel(info.origin)})')
+        ..writeln(_sdkLine(info))
         ..writeln('  Could not check: ${error.message}')
         ..writeln();
     case SdkNotChecked() || SdkNotFound():
@@ -137,9 +137,21 @@ String _fixLine(Finding f) {
   return '$fixed or later';
 }
 
-String _sdkLabel(SdkInfo info) => [
-      if (info.flutter != null)
-        'Flutter ${info.flutter}'
-            '${info.channel == null ? '' : ' ${info.channel}'}',
-      if (info.dart != null) 'Dart ${info.dart}',
-    ].join(' / ');
+// One origin after the line, not one after each version, unless the Dart
+// version came from somewhere else: a line that always read
+// "Flutter 3.47.6 stable / Dart 3.13.5 (flutter --version)" keeps reading so.
+String _sdkLine(SdkInfo info) {
+  final flutter = info.flutter == null
+      ? null
+      : 'Flutter ${info.flutter}'
+          '${info.channel == null ? '' : ' ${info.channel}'}';
+  final dart = info.dart == null ? null : 'Dart ${info.dart}';
+  if (dart == null || info.dartOrigin == info.origin) {
+    final versions = [flutter, dart].nonNulls.join(' / ');
+    return '$versions (${sdkOriginLabel(info.origin)})';
+  }
+  return [
+    if (flutter != null) '$flutter (${sdkOriginLabel(info.origin)})',
+    '$dart (${sdkOriginLabel(info.dartOrigin)})',
+  ].join(' / ');
+}

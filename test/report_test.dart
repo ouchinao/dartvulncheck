@@ -61,6 +61,8 @@ void main() {
     final json = jsonDecode(await render(['--json'])) as Map<String, Object?>;
     expect(json['version'], 1);
     expect(json.keys, ['version', 'tool', 'sdk', 'projects', 'summary']);
+    expect((json['sdk'] as Map).keys,
+        ['flutter', 'dart', 'channel', 'origin', 'dartOrigin']);
     expect(
         (json['summary'] as Map).keys, ['findings', 'ignored', 'unverified']);
     final project = (json['projects'] as List).first as Map;

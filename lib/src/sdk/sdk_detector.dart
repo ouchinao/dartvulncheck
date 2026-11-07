@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:pub_semver/pub_semver.dart';
 
 import '../model/notices.dart';
 import '../model/sdk_info.dart';
@@ -27,7 +26,7 @@ class SdkDetector {
     final warnings = <Warning>[];
 
     if (flutterOverride != null) {
-      final v = _parseVersion(flutterOverride);
+      final v = parseSdkVersionText(flutterOverride);
       if (v == null) {
         warnings.add(SdkVersionOverrideInvalid(flutterOverride));
       } else {
@@ -64,20 +63,37 @@ class SdkDetector {
   // `flutter` on PATH is still asked when the version came from elsewhere,
   // not skipped: a .fvmrc left in a checkout that flutter-action builds, or a
   // forged one, names a version nothing builds with, and the difference is
-  // the only sign of it.
+  // the only sign of it. When PATH has the same release, its Dart version
+  // and channel are the pin's too (one Flutter release bundles one Dart
+  // SDK). From a different release nothing is taken: with FVM the pin is
+  // what builds, and PATH only confirms it (S3).
   Future<SdkDetection> _chosenElsewhere(
       SdkInfo chosen, List<Warning> warnings) async {
-    final mismatch = await _mismatchWithPath(chosen);
-    return SdkDetection(chosen, [...warnings, if (mismatch != null) mismatch]);
+    final onPath = await _flutterOnPath();
+    if (onPath == null || onPath.flutter == null) {
+      return SdkDetection(chosen, warnings);
+    }
+    if (onPath.flutter != chosen.flutter) {
+      return SdkDetection(chosen, [
+        ...warnings,
+        SdkVersionMismatch(
+            chosen: chosen.flutter!,
+            onPath: onPath.flutter!,
+            origin: chosen.origin),
+      ]);
+    }
+    final dart = onPath.dart;
+    if (dart == null) return SdkDetection(chosen, warnings);
+    return SdkDetection(
+        chosen.withDart(dart,
+            from: SdkOrigin.flutterCommand, channel: onPath.channel),
+        warnings);
   }
 
-  Future<Warning?> _mismatchWithPath(SdkInfo chosen) async {
+  Future<SdkInfo?> _flutterOnPath() async {
     final output = await runner.run('flutter', ['--version', '--machine']);
     if (output == null || output.exitCode != 0) return null;
-    final onPath = parseFlutterMachineVersion(output.stdout)?.flutter;
-    if (onPath == null || onPath == chosen.flutter) return null;
-    return SdkVersionMismatch(
-        chosen: chosen.flutter!, onPath: onPath, origin: chosen.origin);
+    return parseFlutterMachineVersion(output.stdout);
   }
 
   // FVM's pin before `flutter` on PATH: with FVM the pin is what builds.
@@ -106,7 +122,7 @@ class SdkDetector {
         warnings.add(FvmConfigUnreadable(f.path));
         continue;
       }
-      final v = _parseVersion('${json[key]}');
+      final v = parseSdkVersionText('${json[key]}');
       if (v != null) return (SdkInfo(flutter: v, origin: origin), warnings);
     }
     return (null, warnings);
@@ -125,8 +141,8 @@ class SdkDetector {
       return null;
     }
     if (json is! Map) return null;
-    final flutter = _parseVersion('${json['frameworkVersion']}');
-    final dart = _parseVersion('${json['dartSdkVersion']}');
+    final flutter = parseSdkVersionText('${json['frameworkVersion']}');
+    final dart = parseSdkVersionText('${json['dartSdkVersion']}');
     if (flutter == null && dart == null) return null;
     final channel = json['channel'];
     return SdkInfo(
@@ -137,21 +153,16 @@ class SdkDetector {
     );
   }
 
+  // The "(build ...)" group is captured with the version, not cut off at
+  // the first space: Flutter's bundled dart prints
+  // "3.14.0 (build 3.14.0-315.3.beta) (beta)", and the build is the version.
   static SdkInfo? parseDartVersion(String output) {
-    final m = RegExp(r'Dart SDK version:\s*(\S+)(?:\s*\((\w+)\))?')
+    final m = RegExp(r'Dart SDK version:\s*(\S+(?:\s*\(build [^)]*\))?)'
+            r'(?:\s*\((\w+)\))?')
         .firstMatch(output);
     if (m == null) return null;
-    final v = _parseVersion(m.group(1)!);
+    final v = parseSdkVersionText(m.group(1)!);
     if (v == null) return null;
     return SdkInfo(dart: v, channel: m.group(2), origin: SdkOrigin.dartCommand);
-  }
-
-  static Version? _parseVersion(String text) {
-    final token = text.trim().split(RegExp(r'\s+')).first;
-    try {
-      return Version.parse(token);
-    } on FormatException {
-      return null;
-    }
   }
 }

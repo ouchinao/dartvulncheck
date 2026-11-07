@@ -16,10 +16,10 @@ What it adds over the warning from `flutter pub get`:
 ## Install
 
 ```sh
-dart pub global activate dartvulncheck 0.3.0
+dart pub global activate dartvulncheck 0.4.0
 ```
 
-Or from git, at a release tag: `dart pub global activate --source git https://github.com/ouchinao/dartvulncheck --git-ref v0.3.0`. Either way, name a version rather than the head of `main`, so that the tool does not change under you between runs.
+Or from git, at a release tag: `dart pub global activate --source git https://github.com/ouchinao/dartvulncheck --git-ref v0.4.0`. Either way, name a version rather than the head of `main`, so that the tool does not change under you between runs.
 
 Each run also asks pub.dev for the latest release of dartvulncheck and prints a warning when a newer one exists. Upgrading is the same command with the new version. The lookup never changes the exit code; if pub.dev cannot be reached, it is skipped, and `--verbose` says why.
 
@@ -39,7 +39,7 @@ It reads `pubspec.lock`, so run `dart pub get` (or `flutter pub get`) first.
 | `--ignore <id>` | Advisory ID to ignore (GHSA or CVE). Repeatable. Added to `ignored_advisories` in `pubspec.yaml` | None |
 | `--strict` | Also count advisories whose affected range cannot be read ("unverified") | Not counted |
 | `--no-repo-advisories` | Skip repository advisories (the early-warning stage) | Skipped automatically without `GITHUB_TOKEN` |
-| `--sdk-version <ver>` | Pass the Flutter version by hand | `.fvmrc` (or `.fvm/fvm_config.json`) → `flutter --version` → `dart --version` |
+| `--sdk-version <ver>` | Pass the Flutter version by hand. Its Dart version comes from `flutter --version` when that is the same release, otherwise from Flutter's release manifest | `.fvmrc` (or `.fvm/fvm_config.json`) → `flutter --version` → `dart --version` |
 | `--no-sdk` | Do not check the SDK | Checked |
 | `--no-transitive` | Do not check transitive dependencies | Checked |
 | `--verbose` | Show how many packages were queried and ignored, which could not be looked up, and which package repositories had moved | Off |
@@ -75,14 +75,14 @@ vulncheck:
     - uses: subosito/flutter-action@v2
       with:
         channel: stable
-    - run: dart pub global activate dartvulncheck 0.3.0
+    - run: dart pub global activate dartvulncheck 0.4.0
     - run: dart pub global run dartvulncheck app packages/core
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 - No `pub get` needed: only the committed `pubspec.lock` is read.
-- `flutter-action` is there so the SDK version can be read from `flutter --version`. For pure Dart projects, `dart-lang/setup-dart` is enough.
+- `flutter-action` is there so the SDK version can be read from `flutter --version`. With an `.fvmrc` (or `--sdk-version`) the pinned version is what is checked; its Dart version is taken from `flutter` on PATH when that is the same release, otherwise from Flutter's release manifest (one request of about 270 KB to storage.googleapis.com, without the token). Pin the action to the same version (`flutter-version: 3.47.8`) and nothing is downloaded. For pure Dart projects, `dart-lang/setup-dart` is enough; for a Flutter project without `flutter` on PATH, pass `--sdk-version` and the Dart version is looked up the same way.
 - `GITHUB_TOKEN` is needed because the repository-advisory stage makes dozens of requests (60/hour without a token, 1,000/hour with one). The default Actions token is enough.
 - Run it on a weekly `schedule` as well as on pull requests: new advisories appear even when your code does not change.
 - This complements Dependabot alerts rather than replacing them. Dependabot opens fix PRs; this tool stops CI and also covers the SDK and unreviewed advisories.
@@ -94,8 +94,9 @@ vulncheck:
 | Primary | GitHub Advisory Database (`GET /advisories?ecosystem=pub&affects=…`) | Hosted packages |
 | Early warning | Repository security advisories (`GET /repos/{owner}/{repo}/security-advisories`) | Packages with a GitHub repository, plus `dart-lang/sdk` and `flutter/flutter` |
 | Fallback | OSV.dev (`POST /v1/querybatch`) | Used only when GitHub is unreachable or answers something that is not an advisory list. Not on rate limiting or a rejected token: those need a fix on your side |
+| SDK version | Flutter's release manifest (`GET https://storage.googleapis.com/flutter_infra_release/releases/releases_linux.json`) | The Dart SDK bundled with a Flutter version taken from `.fvmrc` or `--sdk-version`, when `flutter` on PATH is absent or another release. If it cannot be reached, Dart-only SDK advisories are skipped with a warning, not exit 1 |
 
-Base URLs can be overridden with `DARTVULNCHECK_GITHUB_API_URL`, `DARTVULNCHECK_OSV_API_URL` and `DARTVULNCHECK_PUB_URL` (for tests and GitHub Enterprise). Overrides must be `https`; `http` is accepted for localhost only, and every override in effect is reported on stderr.
+Base URLs can be overridden with `DARTVULNCHECK_GITHUB_API_URL`, `DARTVULNCHECK_OSV_API_URL`, `DARTVULNCHECK_PUB_URL` and `DARTVULNCHECK_FLUTTER_RELEASES_URL` (for tests, GitHub Enterprise and mirrors). Overrides must be `https`; `http` is accepted for localhost only, and every override in effect is reported on stderr.
 
 A redirect is followed only when it stays on the same origin as the request (GitHub answers with one for a renamed or transferred repository); a redirect to another host is refused and reported, so an override must name the host that answers.
 
@@ -104,6 +105,7 @@ A redirect is followed only when it stays on the same origin as the request (Git
 - It does not check whether vulnerable code is actually called. pub advisories do not say which functions are affected, so there is nothing to match a call graph against.
 - Advisories that only affect some platforms are reported for all platforms. Use `ignored_advisories` with a comment for the ones that do not apply.
 - `git` and `path` dependencies cannot be looked up. They are listed with `--verbose`.
+- Older Flutter releases (stable releases up to 1.22.6, and beta and dev builds up to the end of 2021) may carry no Dart SDK version in the release manifest, and a release published minutes ago may not be listed yet. For those, Dart-only SDK advisories are not checked, and a warning says so.
 - Repository advisories describe affected versions in free text written by the maintainers. The forms seen so far are read (`< 3.13.7 (stable), < 3.14.0-315.3.beta (beta)`, `Prior to 3.11.0`, `Dart version prior to 2.18.2, Flutter version prior to 3.3.3`, `>=1.0.0 <= 2.7.1`); anything else is reported as "unverified" and not counted unless `--strict`.
 - Withdrawn advisories are dropped, and advisories of `dart-lang/sdk` that name no package are matched against the SDK only, not against the packages published from that repository (`meta`, `analyzer`, …).
 
@@ -120,7 +122,7 @@ dart test
 UPDATE_GOLDENS=1 dart test test/report_test.dart  # after an intended output change
 ```
 
-The GitHub API responses under `test/fixtures/responses/` are recorded, not written by hand. To refresh them, run the `Record API fixtures` workflow in Actions and copy the files from its artifact over the existing ones.
+The GitHub API responses and the Flutter release manifest under `test/fixtures/responses/` are recorded, not written by hand. To refresh them, run the `Record API fixtures` workflow in Actions and copy the files from its artifact over the existing ones.
 
 A release is a version bump in `pubspec.yaml` and `lib/src/version.dart`, an entry in `CHANGELOG.md`, and, once that is merged, a `v<version>` tag on `main`; the `Publish to pub.dev` workflow publishes that tag.
 

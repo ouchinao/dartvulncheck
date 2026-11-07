@@ -204,12 +204,121 @@ void main() {
     expect(r.code, ExitCodes.vulnerable);
   });
 
-  test('--sdk-version is used when flutter is not installed', () async {
+  test(
+      'a .fvmrc that matches flutter on PATH checks Dart-only advisories and '
+      'names both origins', () async {
+    final dir = makeProject(tmp, 'app', 'app.lock');
+    File(p.join(dir.path, '.fvmrc')).writeAsStringSync('{"flutter": "3.47.6"}');
+    final r = await run(['app']);
+    expect(
+        r.out,
+        startsWith(
+            'Flutter 3.47.6 stable (.fvmrc) / Dart 3.13.5 (flutter --version)'));
+    expect(r.err, isNot(contains('Dart SDK version is unknown')));
+    expect(r.out, contains('GHSA-frr6-h895-5pxp'));
+  });
+
+  test(
+      '--sdk-version without flutter on PATH takes the Dart version from the '
+      'Flutter release manifest', () async {
     makeProject(tmp, 'app', 'app.lock');
     final r = await run(['app', '--sdk-version', '3.47.6'],
         processes: nothingInstalled());
+    expect(
+        r.out,
+        startsWith('Flutter 3.47.6 (--sdk-version) / '
+            'Dart 3.13.5 (Flutter release manifest)'));
     expect(r.out, contains('GHSA-frr6-h895-5pxp  Flutter 3.47.6'));
-    expect(r.err, contains('Dart SDK version is unknown'));
+    expect(r.err, isNot(contains('Dart SDK version is unknown')));
+  });
+
+  test(
+      'a .fvmrc that differs from flutter on PATH is warned about, and its '
+      'Dart version comes from the manifest', () async {
+    final dir = makeProject(tmp, 'app', 'app.lock');
+    File(p.join(dir.path, '.fvmrc')).writeAsStringSync('{"flutter": "3.47.8"}');
+    final r = await run(['app']);
+    expect(r.err, contains('was checked, but `flutter` on PATH is 3.47.6'));
+    expect(
+        r.out,
+        startsWith(
+            'Flutter 3.47.8 (.fvmrc) / Dart 3.13.7 (Flutter release manifest)'));
+    expect(r.out, isNot(contains('GHSA-frr6-h895-5pxp')));
+  });
+
+  test(
+      'a manifest entry on another channel cannot hide a Flutter-range '
+      'finding, and the report takes no channel from it', () async {
+    makeProject(tmp, 'app', 'no_hosted.lock');
+    final r = await run(['app', '--sdk-version', '3.47.6'],
+        api: FakeApi()
+          ..flutterReleases = [
+            {
+              'version': '3.47.6',
+              'channel': 'dev',
+              'dart_sdk_version': '3.13.5'
+            },
+          ],
+        processes: nothingInstalled());
+    expect(
+        r.out,
+        startsWith('Flutter 3.47.6 (--sdk-version) / '
+            'Dart 3.13.5 (Flutter release manifest)'));
+    expect(r.out, contains('GHSA-frr6-h895-5pxp  Flutter 3.47.6'));
+    expect(r.code, ExitCodes.vulnerable);
+  });
+
+  test(
+      'when the manifest answers 503 the Dart version stays unknown with one '
+      'warning naming the cause, and the exit code is unchanged', () async {
+    makeProject(tmp, 'app', 'app.lock');
+    final r = await run(['app', '--sdk-version', '3.47.6'],
+        api: FakeApi()..flutterReleasesStatus = 503,
+        processes: nothingInstalled());
+    expect(
+        r.err,
+        contains('the Dart SDK version is unknown, so Dart-only SDK advisories '
+            'were not checked: cannot reach the Flutter release manifest'));
+    expect(r.out, startsWith('Flutter 3.47.6 (--sdk-version)\n'));
+    expect(r.code, ExitCodes.vulnerable);
+  });
+
+  test('a pinned version the manifest does not list is said so', () async {
+    makeProject(tmp, 'app', 'pure_dart.lock');
+    final r = await run(['app', '--sdk-version', '9.9.9'],
+        processes: nothingInstalled());
+    expect(r.err,
+        contains('Flutter 9.9.9 is not in the Flutter release manifest'));
+    expect(r.code, ExitCodes.ok);
+  });
+
+  test(
+      'the manifest is not asked when the Dart version is known, with '
+      '--no-sdk, or when the SDK advisories could not be read', () async {
+    makeProject(tmp, 'app', 'app.lock');
+    for (final (args, api) in [
+      (['app'], FakeApi()),
+      (['app', '--no-sdk', '--sdk-version', '3.47.6'], FakeApi()),
+      (['app', '--sdk-version', '3.47.6'], FakeApi()..githubStatus = 500),
+    ]) {
+      final r = await run(args, api: api, processes: nothingInstalled());
+      expect(r.api.requests.map((q) => q.url.host),
+          isNot(contains('storage.googleapis.com')),
+          reason: args.join(' '));
+    }
+  });
+
+  test('the manifest request carries no Authorization even with GITHUB_TOKEN',
+      () async {
+    makeProject(tmp, 'app', 'app.lock');
+    final r = await run(['app', '--sdk-version', '3.47.6'],
+        processes: nothingInstalled());
+    final manifest = r.api.requests
+        .singleWhere((q) => q.url.host == 'storage.googleapis.com');
+    expect(manifest.headers.keys.map((k) => k.toLowerCase()),
+        isNot(contains('authorization')));
+    expect(r.api.requests.where((q) => q.url.host == 'api.github.com'),
+        isNotEmpty);
   });
 
   test('--json writes only JSON to stdout', () async {
@@ -337,7 +446,11 @@ void main() {
       'GITHUB_TOKEN': 'tkn',
       'DARTVULNCHECK_OSV_API_URL': 'https://osv.internal.example',
     });
-    expect(r.err, contains('DARTVULNCHECK_OSV_API_URL is set'));
+    expect(
+        r.err,
+        contains('DARTVULNCHECK_OSV_API_URL is set: requests go to '
+            'https://osv.internal.example'));
+    expect(r.err, isNot(contains('token')));
     expect(r.code, ExitCodes.vulnerable);
 
     final refused = await run([
@@ -386,6 +499,20 @@ void main() {
       expect(r.err, contains('release check skipped: '));
       expect(r.code, ExitCodes.ok);
     });
+  });
+
+  test('only the GitHub override is said to carry the token', () {
+    expect(
+        describeWarning(EndpointOverridden(
+            'DARTVULNCHECK_GITHUB_API_URL', Uri.parse('https://ghe.example'),
+            carriesToken: true)),
+        'DARTVULNCHECK_GITHUB_API_URL is set: requests, and the token with '
+        'them, go to https://ghe.example');
+    expect(
+        describeWarning(EndpointOverridden(
+            'DARTVULNCHECK_PUB_URL', Uri.parse('https://pub.example'),
+            carriesToken: false)),
+        'DARTVULNCHECK_PUB_URL is set: requests go to https://pub.example');
   });
 
   test('--help wins over every other option', () async {

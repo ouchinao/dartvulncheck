@@ -14,6 +14,7 @@ class Endpoints {
   final Uri githubApi;
   final Uri osvApi;
   final Uri pubDev;
+  final Uri flutterReleases;
 
   // Not forgotten once picked: the run says on stderr where its requests
   // went, and a reader of a CI log should not have to guess.
@@ -23,6 +24,7 @@ class Endpoints {
     required this.githubApi,
     required this.osvApi,
     required this.pubDev,
+    required this.flutterReleases,
     this.overrides = const {},
   });
 
@@ -30,6 +32,8 @@ class Endpoints {
     githubApi: Uri.parse('https://api.github.com'),
     osvApi: Uri.parse('https://api.osv.dev'),
     pubDev: Uri.parse('https://pub.dev'),
+    flutterReleases: Uri.parse(
+        'https://storage.googleapis.com/flutter_infra_release/releases'),
   );
 
   factory Endpoints.fromEnvironment(Map<String, String> env) {
@@ -55,6 +59,8 @@ class Endpoints {
       githubApi: pick('DARTVULNCHECK_GITHUB_API_URL', defaults.githubApi),
       osvApi: pick('DARTVULNCHECK_OSV_API_URL', defaults.osvApi),
       pubDev: pick('DARTVULNCHECK_PUB_URL', defaults.pubDev),
+      flutterReleases:
+          pick('DARTVULNCHECK_FLUTTER_RELEASES_URL', defaults.flutterReleases),
       overrides: overrides,
     );
   }
@@ -218,9 +224,8 @@ class HttpFetcher {
     required String sourceName,
   }) {
     final code = response.statusCode;
-    final header = response.headers['location'];
-    final location =
-        header == null || header.isEmpty ? null : Uri.tryParse(header);
+    final header = response.headers['location'] ?? '';
+    final location = header.isEmpty ? null : Uri.tryParse(header);
     if (method != 'GET') {
       final to =
           location == null ? '' : ' to ${_originOf(from.resolveUri(location))}';
@@ -232,7 +237,10 @@ class HttpFetcher {
     }
     if (location == null) {
       throw UnexpectedResponse(
-          sourceName, 'redirected (HTTP $code) without a Location');
+          sourceName,
+          header.isEmpty
+              ? 'redirected (HTTP $code) without a Location'
+              : 'redirected (HTTP $code) with a Location that is not a URL');
     }
     final target = from.resolveUri(location);
     // Refused, not stripped and followed: dart:io would turn the userinfo

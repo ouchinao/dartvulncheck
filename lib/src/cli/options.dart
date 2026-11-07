@@ -72,15 +72,17 @@ sealed class Command {
             'review). Skipped without GITHUB_TOKEN.')
     ..addOption('sdk-version',
         valueHelp: 'ver',
-        help: 'Flutter version to check, for CI without flutter on PATH.')
+        help: 'Flutter version to check, for CI without flutter on PATH. Its '
+            'Dart SDK version comes from flutter on PATH when that is the '
+            'same release, else from the Flutter release manifest.')
     ..addFlag('sdk', defaultsTo: true, help: 'Also check the Flutter/Dart SDK.')
     ..addFlag('transitive',
         defaultsTo: true, help: 'Also check transitive dependencies.')
     ..addFlag('verbose',
         abbr: 'v',
         negatable: false,
-        help:
-            'Show queried and ignored counts, and packages that could not be looked up.')
+        help: 'Show queried and ignored counts, packages that could not be '
+            'looked up, and package repositories that had moved.')
     ..addFlag('version', negatable: false, help: 'Print the version.')
     ..addFlag('help', abbr: 'h', negatable: false, help: 'Print this usage.');
 }

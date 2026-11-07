@@ -39,6 +39,10 @@ Map<String, Object?>? _sdk(SdkStatus status) {
     'dart': info.dart?.toString(),
     'channel': info.channel,
     'origin': sdkOriginLabel(info.origin),
+    // Always present, null without a Dart version, and a key added inside
+    // `sdk` rather than a format version bump: a reader of version 1 that
+    // ignores unknown keys still reads what it read.
+    'dartOrigin': info.dart == null ? null : sdkOriginLabel(info.dartOrigin),
     if (error != null) 'error': error.message,
   };
 }

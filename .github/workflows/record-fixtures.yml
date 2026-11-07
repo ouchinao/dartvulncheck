@@ -34,6 +34,10 @@ jobs:
           record github_repo_advisories_flutter "/repos/flutter/flutter/security-advisories?state=published&per_page=100"
           record github_repo_advisories_cfug_dio "/repos/cfug/dio/security-advisories?state=published&per_page=100"
           record github_global_advisories "/advisories?ecosystem=pub&affects=dio@4.0.6,http@0.13.2&per_page=100"
+          # curl, not record(): gh api reaches only GitHub, and 749 per-entry
+          # log lines would bury the advisory lines.
+          curl -fsSL --proto '=https' --max-time 60 https://storage.googleapis.com/flutter_infra_release/releases/releases_linux.json -o fixtures/flutter_releases_linux.json
+          echo "FIXTURE-COUNT flutter_releases_linux $(jq '.releases | length' fixtures/flutter_releases_linux.json)"
       - uses: actions/upload-artifact@v4
         with:
           name: recorded-api-responses

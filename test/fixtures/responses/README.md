@@ -8,6 +8,12 @@
   workflow and copy the artifact's files over these.
 - `pub_dev_*.json`: recorded as-is from pub.dev on 2026-10-30
   (`/api/packages/dio`, `/api/packages/{http,dio}/advisories`).
+- `flutter_releases_linux.json`: recorded as-is on 2026-11-05 from
+  `https://storage.googleapis.com/flutter_infra_release/releases/releases_linux.json`,
+  Flutter's release manifest, which the workflow above also records (with
+  `curl`, since `gh api` reaches only GitHub). The Linux file is used on
+  every OS: its version-to-Dart map is the same as the macOS one and a
+  superset of the Windows one.
 - `osv_vuln_*.json`: single records taken unchanged from the pub.dev
   advisories responses above. pub.dev serves OSV-schema records, the same
   shape as `GET https://api.osv.dev/v1/vulns/{id}`.

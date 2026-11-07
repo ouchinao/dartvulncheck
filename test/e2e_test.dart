@@ -27,6 +27,7 @@ void main() {
       final host = switch (segments.first) {
         'github' => 'api.github.com',
         'pub' => 'pub.dev',
+        'flutter' => 'storage.googleapis.com',
         _ => 'api.osv.dev',
       };
       final url = Uri.https(host, '/${segments.skip(1).join('/')}',
@@ -68,6 +69,8 @@ void main() {
         'DARTVULNCHECK_GITHUB_API_URL': '$base/github',
         'DARTVULNCHECK_PUB_URL': '$base/pub',
         'DARTVULNCHECK_OSV_API_URL': '$base/osv',
+        // Without it the two --sdk-version runs would reach the real bucket.
+        'DARTVULNCHECK_FLUTTER_RELEASES_URL': '$base/flutter',
       },
       stdoutEncoding: utf8,
       stderrEncoding: utf8,
@@ -97,6 +100,10 @@ void main() {
     final r = await run(['app', '--sdk-version', '3.47.6']);
     expect(r.exitCode, ExitCodes.vulnerable, reason: '${r.stderr}');
     expect(r.stdout, contains('GHSA-frr6-h895-5pxp'));
+    // The manifest was asked through the loopback server, not the bucket.
+    expect(r.stdout, contains('Dart 3.13.5 (Flutter release manifest)'));
+    expect(api.requests.map((q) => q.url.host),
+        contains('storage.googleapis.com'));
     expect(r.stdout, contains('GHSA-9324-jv53-9cc8'));
   });
 

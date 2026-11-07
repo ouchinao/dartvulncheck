@@ -45,8 +45,9 @@ class GitHubClient {
       }
       final response =
           await fetcher.get(url, headers: _headers, sourceName: sourceName);
-      // Checked on the first page only, not on every page: later pages come
-      // from Link and have no requested URL to compare with.
+      // Checked on the first page only, not on every page: the move is the
+      // first page's redirect, and a later page comes from Link, where a hop
+      // would say nothing new about the repository.
       final answered = response.request?.url ?? url;
       if (pages == 1 && answered != first) onMoved?.call(answered);
       if (response.statusCode == 404) return null;

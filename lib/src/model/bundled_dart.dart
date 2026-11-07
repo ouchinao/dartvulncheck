@@ -32,8 +32,8 @@ class BundledDartNotListed extends BundledDartMissing {
 }
 
 // Apart from NotListed, not folded into it: the version is in the manifest
-// (the manifest records no Dart SDK for releases from before mid-2020), so
-// a reader should not go looking for a typo in the pin.
+// (many releases from before 2022 are listed without a Dart SDK), so a
+// reader should not go looking for a typo in the pin.
 class BundledDartNotRecorded extends BundledDartMissing {
   final Version flutter;
   const BundledDartNotRecorded(this.flutter);

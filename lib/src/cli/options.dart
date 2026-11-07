@@ -81,8 +81,8 @@ sealed class Command {
     ..addFlag('verbose',
         abbr: 'v',
         negatable: false,
-        help:
-            'Show queried and ignored counts, and packages that could not be looked up.')
+        help: 'Show queried and ignored counts, packages that could not be '
+            'looked up, and package repositories that had moved.')
     ..addFlag('version', negatable: false, help: 'Print the version.')
     ..addFlag('help', abbr: 'h', negatable: false, help: 'Print this usage.');
 }

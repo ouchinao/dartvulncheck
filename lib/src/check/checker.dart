@@ -133,9 +133,9 @@ class Checker {
     return (SdkChecked(info), advisories);
   }
 
-  // The pinned Flutter version is mapped, never the one on PATH (S3). A
-  // missing answer is a warning, not an error: the run is then where it
-  // was without the lookup.
+  // The version the detector chose is mapped: a pin's when there is one,
+  // never a differing release on PATH (S3). A missing answer is a warning,
+  // not an error: the run is then where it was without the lookup.
   Future<SdkInfo> _withBundledDart(SdkInfo info) async {
     final flutter = info.flutter;
     final lookup = flutter == null

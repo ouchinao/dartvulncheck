@@ -224,9 +224,8 @@ class HttpFetcher {
     required String sourceName,
   }) {
     final code = response.statusCode;
-    final header = response.headers['location'];
-    final location =
-        header == null || header.isEmpty ? null : Uri.tryParse(header);
+    final header = response.headers['location'] ?? '';
+    final location = header.isEmpty ? null : Uri.tryParse(header);
     if (method != 'GET') {
       final to =
           location == null ? '' : ' to ${_originOf(from.resolveUri(location))}';
@@ -238,7 +237,10 @@ class HttpFetcher {
     }
     if (location == null) {
       throw UnexpectedResponse(
-          sourceName, 'redirected (HTTP $code) without a Location');
+          sourceName,
+          header.isEmpty
+              ? 'redirected (HTTP $code) without a Location'
+              : 'redirected (HTTP $code) with a Location that is not a URL');
     }
     final target = from.resolveUri(location);
     // Refused, not stripped and followed: dart:io would turn the userinfo

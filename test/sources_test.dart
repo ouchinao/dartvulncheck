@@ -423,6 +423,19 @@ void main() {
               (e) => e.message, 'message', contains('without a Location'))));
       expect(calls, 1);
     });
+
+    test(
+        'a redirect whose Location is not a URL is an unexpected response '
+        'that says so, not one that says the header is missing', () async {
+      final client = MockClient((req) async =>
+          http.Response('', 301, headers: {'location': 'http://[bad'}));
+      final source = GitHubGlobalSource(GitHubClient(fetcherFor(client),
+          apiBase: Endpoints.defaults.githubApi));
+      await expectLater(
+          source.query([pkg('dio', '1.0.0')]),
+          throwsA(isA<UnexpectedResponse>().having((e) => e.message, 'message',
+              contains('with a Location that is not a URL'))));
+    });
   });
 
   group('Flutter release manifest', () {

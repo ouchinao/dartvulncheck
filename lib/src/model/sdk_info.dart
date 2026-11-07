@@ -30,8 +30,9 @@ class SdkInfo {
   }) : dartOrigin = dartOrigin ?? origin;
 
   // A copy, not a mutable field: an SdkInfo is passed around as a fact.
-  // The channel is taken only when none is known: a pin that names one is
-  // not second-guessed.
+  // `this.channel ?? channel`, not the argument alone: the manifest lookup
+  // passes no channel and must not erase the one `flutter` on PATH
+  // printed, while a pin names none and takes PATH's from the argument.
   SdkInfo withDart(Version dart, {required SdkOrigin from, String? channel}) =>
       SdkInfo(
         flutter: flutter,

@@ -105,7 +105,7 @@ A redirect is followed only when it stays on the same origin as the request (Git
 - It does not check whether vulnerable code is actually called. pub advisories do not say which functions are affected, so there is nothing to match a call graph against.
 - Advisories that only affect some platforms are reported for all platforms. Use `ignored_advisories` with a comment for the ones that do not apply.
 - `git` and `path` dependencies cannot be looked up. They are listed with `--verbose`.
-- Flutter releases from before mid-2020, and old beta and dev builds, carry no Dart SDK version in the release manifest, and a release published minutes ago may not be listed yet. For those, Dart-only SDK advisories are not checked, and a warning says so.
+- Older Flutter releases (stable releases up to 1.22.6, and beta and dev builds up to the end of 2021) may carry no Dart SDK version in the release manifest, and a release published minutes ago may not be listed yet. For those, Dart-only SDK advisories are not checked, and a warning says so.
 - Repository advisories describe affected versions in free text written by the maintainers. The forms seen so far are read (`< 3.13.7 (stable), < 3.14.0-315.3.beta (beta)`, `Prior to 3.11.0`, `Dart version prior to 2.18.2, Flutter version prior to 3.3.3`, `>=1.0.0 <= 2.7.1`); anything else is reported as "unverified" and not counted unless `--strict`.
 - Withdrawn advisories are dropped, and advisories of `dart-lang/sdk` that name no package are matched against the SDK only, not against the packages published from that repository (`meta`, `analyzer`, …).
 

@@ -147,7 +147,7 @@ String _sdkLine(SdkInfo info) {
           '${info.channel == null ? '' : ' ${info.channel}'}';
   final dart = info.dart == null ? null : 'Dart ${info.dart}';
   if (dart == null || info.dartOrigin == info.origin) {
-    final versions = [if (flutter != null) flutter, dart].nonNulls.join(' / ');
+    final versions = [flutter, dart].nonNulls.join(' / ');
     return '$versions (${sdkOriginLabel(info.origin)})';
   }
   return [

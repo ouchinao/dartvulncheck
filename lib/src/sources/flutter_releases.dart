@@ -7,8 +7,8 @@ import 'http_fetcher.dart';
 
 // Not an AdvisorySource: Flutter's release manifest answers one fact only,
 // which Dart SDK a Flutter release bundles, and nothing stands in for it.
-// It is asked when a pin names the Flutter version and nothing on PATH can
-// say the Dart one.
+// It is asked when the Flutter version is known and nothing on PATH says
+// the Dart one: a pin, or a `flutter` that printed none.
 class FlutterReleases {
   final HttpFetcher fetcher;
   final Uri base;
@@ -21,8 +21,8 @@ class FlutterReleases {
   // the Windows one, and one recorded fixture is enough.
   static const manifestFile = 'releases_linux.json';
 
-  // Returned, not thrown: an unknown Dart version is a warning, and this
-  // lookup must never reach the exit code (D4).
+  // Returned, not thrown: an unknown Dart version is a warning, and a
+  // lookup that fails must never reach the exit code (D4).
   Future<BundledDart> bundledDart(Version flutter) async {
     final url = base.replace(path: '${_trim(base.path)}/$manifestFile');
     try {
